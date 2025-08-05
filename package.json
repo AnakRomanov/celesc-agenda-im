@@ -1,5 +1,3 @@
-// NOME DO ARQUIVO: package.json
-
 {
   "name": "celesc-agendamento-backend",
   "version": "1.0.0",
@@ -24,3 +22,4 @@
     "node": "18.x"
   }
 }
+
