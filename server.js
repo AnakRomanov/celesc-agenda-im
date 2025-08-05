@@ -1,5 +1,3 @@
-// NOME DO ARQUIVO: server.js
-
 // --- Importação dos Módulos ---
 const express = require('express');
 const cors = require('cors');
@@ -280,4 +278,5 @@ app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
 ```json
