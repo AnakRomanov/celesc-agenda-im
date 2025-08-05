@@ -1,5 +1,3 @@
--- NOME DO ARQUIVO: database.sql
-
 -- Garante que a tabela não exista antes de criar
 DROP TABLE IF EXISTS agendamentos;
 
@@ -32,3 +30,4 @@ CREATE INDEX idx_numero_nota ON agendamentos (numero_nota);
 -- Insere um dado de exemplo para teste
 INSERT INTO agendamentos (numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data_original, periodo_original, data_atual, periodo_atual)
 VALUES ('12345', '98765', 'João da Silva Teste', 'Criciuma', '2025-10-25', 'manha', '2025-10-25', 'manha');
+
