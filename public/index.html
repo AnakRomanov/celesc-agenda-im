@@ -1,0 +1,703 @@
+<!-- NOME DO ARQUIVO: public/index.html -->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento de Inspeção - CELESC</title>
+    <!-- Link para o arquivo de estilos CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Agendamento de Inspeção da Medição</h1>
+            <p>Sistema para agendamento e consulta de inspeções - CELESC</p>
+        </header>
+
+        <!-- ÁREA PÚBLICA -->
+        <div id="area-publica">
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="agendar">Novo Agendamento</button>
+                <button class="nav-tab" data-tab="consultar">Consultar / Reagendar</button>
+                <button class="nav-tab" data-tab="backoffice-login">Acesso Restrito</button>
+            </div>
+
+            <!-- Aba de Agendamento -->
+            <div id="tab-agendar" class="tab-content active">
+                <h2>Preencha os dados para agendar</h2>
+                <form id="form-agendamento">
+                    <div class="form-group">
+                        <label for="numero_nota">Número da Nota</label>
+                        <input type="text" id="numero_nota" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero_instalacao">Número da Instalação</label>
+                        <input type="text" id="numero_instalacao" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="responsavel">Responsável pelo Agendamento</label>
+                        <input type="text" id="responsavel" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="localidade">Selecione a Região</label>
+                        <select id="localidade" required>
+                            <option value="">-- Escolha uma opção --</option>
+                            <option value="Criciuma">Criciúma e região</option>
+                            <option value="Ararangua">Araranguá e região</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="data">Selecione a Data</label>
+                        <input type="date" id="data" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Selecione o Turno</label>
+                        <div class="periodo-options">
+                            <label><input type="radio" name="periodo" value="manha" required> Manhã</label>
+                            <label><input type="radio" name="periodo" value="tarde" required> Tarde</label>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="confirmacao" required>
+                        <label for="confirmacao" id="confirmacao-msg">Confirmo que atualizei o e-mail do solicitante no SAP CRM e informei que a confirmação do agendamento ocorrerá por esse contato.</label>
+                    </div>
+                    <button type="submit" class="btn">Agendar</button>
+                </form>
+            </div>
+
+            <!-- Aba de Consulta / Reagendamento -->
+            <div id="tab-consultar" class="tab-content">
+                <h2>Consulte ou reagende sua inspeção</h2>
+                <form id="form-consulta">
+                    <div class="form-group">
+                        <label for="consulta_numero_nota">Informe o Número da Nota</label>
+                        <input type="text" id="consulta_numero_nota" required>
+                    </div>
+                    <button type="submit" class="btn">Buscar Agendamento</button>
+                </form>
+                <div id="consulta-resultado" class="consulta-resultado" style="display: none;"></div>
+            </div>
+            
+            <!-- Aba de Login Backoffice -->
+            <div id="tab-backoffice-login" class="tab-content">
+                 <h2>Acesso Restrito - CELESC</h2>
+                 <form id="form-login">
+                    <div class="form-group">
+                        <label for="senha">Senha de Acesso</label>
+                        <input type="password" id="senha" required>
+                    </div>
+                    <button type="submit" class="btn">Entrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ÁREA RESTRITA (BACKOFFICE) -->
+        <div id="area-backoffice" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Painel de Controle de Agendamentos</h2>
+                <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 8px 15px;">Sair</button>
+            </div>
+            
+            <div class="backoffice-filters">
+                <div class="form-group">
+                    <label for="filtro-localidade">Localidade</label>
+                    <select id="filtro-localidade">
+                        <option value="">Todas</option>
+                        <option value="Criciuma">Criciúma</option>
+                        <option value="Ararangua">Araranguá</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filtro-status">Status</label>
+                    <select id="filtro-status">
+                        <option value="">Todos</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="reagendado">Reagendado</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                </div>
+                 <div class="form-group">
+                    <label for="filtro-data">Data</label>
+                    <input type="date" id="filtro-data">
+                </div>
+            </div>
+
+            <!-- CORREÇÃO: Adicionado um 'wrapper' para a tabela para permitir rolagem horizontal -->
+            <div class="table-wrapper">
+                <table class="backoffice-table">
+                    <thead>
+                        <tr>
+                            <th>Nº Nota</th>
+                            <th>Responsável</th>
+                            <th>Localidade</th>
+                            <th>Data Atual</th>
+                            <th>Período</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-agendamentos">
+                        <!-- Linhas serão inseridas via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Notificação -->
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modal-content">
+            <h3 id="modal-titulo"></h3>
+            <p id="modal-mensagem"></p>
+            <button id="modal-btn-fechar" class="btn">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Link para o arquivo JavaScript -->
+    <script src="client.js"></script>
+</body>
+</html>
+
+```css
+/* NOME DO ARQUIVO: public/styles.css */
+
+:root {
+    --cor-azul-celesc: #005691;
+    --cor-amarelo-celesc: #fdb913;
+    --cor-fundo: #f0f2f5;
+    --cor-texto: #333;
+    --cor-borda: #ccc;
+    --cor-sucesso: #28a745;
+    --cor-erro: #dc3545;
+    --cor-branco: #ffffff;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+    background: var(--cor-branco);
+    padding: 20px 30px 40px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease-in-out;
+}
+
+header {
+    text-align: center;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    color: var(--cor-azul-celesc);
+    font-size: 1.8em;
+    margin: 0;
+}
+
+header p {
+    color: #666;
+    margin-top: 5px;
+}
+
+h2 {
+    color: var(--cor-azul-celesc);
+    font-size: 1.5em;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.nav-tabs {
+    display: flex;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 25px;
+}
+
+.nav-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 1em;
+    color: #495057;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.nav-tab.active {
+    color: var(--cor-azul-celesc);
+    border-bottom-color: var(--cor-azul-celesc);
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="password"],
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 1em;
+    transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--cor-azul-celesc);
+    box-shadow: 0 0 0 2px rgba(0, 86, 145, 0.2);
+}
+
+.periodo-options {
+    display: flex;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+#confirmacao { margin-top: 5px; }
+#confirmacao-msg { font-size: 0.9em; color: #555; }
+
+.btn {
+    display: inline-block;
+    width: 100%;
+    padding: 14px;
+    background-color: var(--cor-amarelo-celesc);
+    color: var(--cor-azul-celesc);
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn:hover {
+    background-color: #eab510;
+}
+.btn:active {
+    transform: scale(0.98);
+}
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+.btn-secondary:hover { background-color: #5a6268; }
+
+.consulta-resultado {
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin-top: 20px;
+}
+.consulta-resultado p { margin: 5px 0; }
+.consulta-resultado strong { color: var(--cor-azul-celesc); }
+
+/* CORREÇÃO: Estilo para o 'wrapper' da tabela, para permitir rolagem */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+/* CORREÇÃO: Estilo da tabela corrigido (removido 'display: block' e 'overflow-x') */
+.backoffice-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.backoffice-table th, .backoffice-table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 0.9em;
+    white-space: nowrap; /* Mantém o texto em uma linha para a rolagem funcionar bem */
+}
+
+.backoffice-table th {
+    background-color: var(--cor-azul-celesc);
+    color: var(--cor-branco);
+}
+.backoffice-table tr:nth-child(even) { background-color: #f9f9f9; }
+.status-agendado { color: #007bff; font-weight: bold; }
+.status-reagendado { color: #ffc107; font-weight: bold; }
+.status-concluido { color: var(--cor-sucesso); font-weight: bold; }
+
+.backoffice-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.backoffice-filters .form-group { flex: 1; min-width: 150px; }
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 30px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 450px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.modal-content h3 { margin-top: 0; }
+.modal-content .btn { margin-top: 20px; }
+.modal-sucesso h3 { color: var(--cor-sucesso); }
+.modal-erro h3 { color: var(--cor-erro); }
+
+@media (max-width: 600px) {
+    body { padding: 10px; }
+    .container { padding: 20px; }
+    header h1 { font-size: 1.5em; }
+    .nav-tabs { font-size: 0.9em; }
+    .nav-tab { padding: 10px; }
+}
+```javascript
+// NOME DO ARQUIVO: public/client.js
+// Nenhuma alteração foi necessária neste arquivo. Ele permanece o mesmo.
+
+// IMPORTANTE: Após hospedar o back-end, você deve colocar a URL dele aqui.
+const API_URL = 'https://agendamento-celesc-backend.onrender.com'; // Exemplo de URL do Render
+
+// --- FUNÇÕES AUXILIARES ---
+function formatarData(dataString) {
+    const data = new Date(dataString);
+    const dia = String(data.getUTCDate()).padStart(2, '0');
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    const ano = data.getUTCFullYear();
+    return `${dia}/${mes}/${ano}`;
+}
+
+// --- CONTROLE DE INTERFACE (UI) ---
+const areaPublica = document.getElementById('area-publica');
+const areaBackoffice = document.getElementById('area-backoffice');
+const tabContents = document.querySelectorAll('.tab-content');
+const navTabs = document.querySelectorAll('.nav-tab');
+
+navTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const tabName = tab.getAttribute('data-tab');
+        
+        navTabs.forEach(nav => nav.classList.remove('active'));
+        tab.classList.add('active');
+
+        tabContents.forEach(content => {
+            content.classList.remove('active');
+            if (content.id === `tab-${tabName}`) {
+                content.classList.add('active');
+            }
+        });
+    });
+});
+
+// --- LÓGICA DO MODAL DE NOTIFICAÇÃO ---
+const modal = document.getElementById('modal');
+const modalContent = document.getElementById('modal-content');
+const modalTitulo = document.getElementById('modal-titulo');
+const modalMensagem = document.getElementById('modal-mensagem');
+document.getElementById('modal-btn-fechar').onclick = () => modal.style.display = 'none';
+
+function showModal(tipo, titulo, mensagem) {
+    modalContent.className = `modal-content modal-${tipo}`;
+    modalTitulo.textContent = titulo;
+    modalMensagem.textContent = mensagem;
+    modal.style.display = 'block';
+}
+
+// --- LÓGICA DE AGENDAMENTO ---
+document.getElementById('form-agendamento').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const agendamentoData = {
+        numero_nota: form.numero_nota.value.trim(),
+        numero_instalacao: form.numero_instalacao.value.trim(),
+        responsavel_pelo_agendamento: form.responsavel.value.trim(),
+        localidade: form.localidade.value,
+        data: form.data.value,
+        periodo: form.querySelector('input[name="periodo"]:checked')?.value,
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/api/agendamentos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(agendamentoData),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message);
+        }
+        showModal('sucesso', 'Agendamento Realizado!', `Sua inspeção foi agendada com sucesso. Número da Nota: ${result.agendamento.numero_nota}.`);
+        form.reset();
+    } catch (error) {
+        showModal('erro', 'Erro no Agendamento', error.message);
+    }
+});
+
+// --- LÓGICA DE CONSULTA E REAGENDAMENTO ---
+const formConsulta = document.getElementById('form-consulta');
+const consultaResultadoDiv = document.getElementById('consulta-resultado');
+
+formConsulta.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const numeroNota = document.getElementById('consulta_numero_nota').value.trim();
+    consultaResultadoDiv.style.display = 'none';
+    consultaResultadoDiv.innerHTML = '';
+
+    if (!numeroNota) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}`);
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message);
+        }
+        
+        const { agendamento, podeReagendar, motivoBloqueio } = result;
+        
+        let htmlResultado = `
+            <h3>Detalhes do Agendamento</h3>
+            <p><strong>Número da Nota:</strong> ${agendamento.numero_nota}</p>
+            <p><strong>Responsável:</strong> ${agendamento.responsavel_pelo_agendamento}</p>
+            <p><strong>Localidade:</strong> ${agendamento.localidade}</p>
+            <p><strong>Data Agendada:</strong> ${formatarData(agendamento.data_atual)}</p>
+            <p><strong>Período:</strong> ${agendamento.periodo_atual}</p>
+            <p><strong>Status:</strong> <span class="status-${agendamento.status}">${agendamento.status.toUpperCase()}</span></p>
+        `;
+
+        if (podeReagendar) {
+            htmlResultado += `
+                <div id="reagendamento-form" style="margin-top: 20px;">
+                    <h4>Reagendar Inspeção</h4>
+                    <div class="form-group">
+                        <label for="nova_data">Escolha a nova data</label>
+                        <input type="date" id="nova_data" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Escolha o novo período</label>
+                        <div class="periodo-options">
+                            <label><input type="radio" name="novo_periodo" value="manha" required> Manhã</label>
+                            <label><input type="radio" name="novo_periodo" value="tarde" required> Tarde</label>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="executarReagendamento('${agendamento.numero_nota}')">Confirmar Reagendamento</button>
+                </div>
+            `;
+        } else if (agendamento.status !== 'concluido') {
+             htmlResultado += `<p style="color: var(--cor-erro); margin-top: 15px;"><strong>Reagendamento não permitido:</strong> ${motivoBloqueio}</p>`;
+        }
+
+        consultaResultadoDiv.innerHTML = htmlResultado;
+        consultaResultadoDiv.style.display = 'block';
+
+    } catch (error) {
+        showModal('erro', 'Erro na Consulta', error.message);
+    }
+});
+
+async function executarReagendamento(numeroNota) {
+    const reagendamentoData = {
+        data: document.getElementById('nova_data').value,
+        periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
+    };
+
+    if (!reagendamentoData.data || !reagendamentoData.periodo) {
+        showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data e o novo período.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}/reagendar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reagendamentoData),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message);
+        }
+        showModal('sucesso', 'Reagendamento Concluído!', `Sua inspeção foi reagendada para ${formatarData(result.agendamento.data_atual)}.`);
+        consultaResultadoDiv.innerHTML = '';
+        consultaResultadoDiv.style.display = 'none';
+        formConsulta.reset();
+    } catch (error) {
+        showModal('erro', 'Erro ao Reagendar', error.message);
+    }
+}
+
+// --- LÓGICA DO BACKOFFICE ---
+const formLogin = document.getElementById('form-login');
+formLogin.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const senha = document.getElementById('senha').value;
+    try {
+        const response = await fetch(`${API_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senha }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message);
+
+        localStorage.setItem('celesc_token', result.token); // Salva o token
+        areaPublica.style.display = 'none';
+        areaBackoffice.style.display = 'block';
+        renderizarTabelaBackoffice();
+    } catch (error) {
+        showModal('erro', 'Acesso Negado', error.message);
+    }
+});
+
+function logout() {
+    localStorage.removeItem('celesc_token');
+    areaBackoffice.style.display = 'none';
+    areaPublica.style.display = 'block';
+    document.getElementById('senha').value = '';
+    
+    const agendarTab = document.querySelector('.nav-tab[data-tab="agendar"]');
+    if (agendarTab) agendarTab.click();
+}
+
+async function renderizarTabelaBackoffice() {
+    const tbody = document.getElementById('tabela-agendamentos');
+    tbody.innerHTML = '';
+    const token = localStorage.getItem('celesc_token');
+
+    const params = new URLSearchParams({
+        localidade: document.getElementById('filtro-localidade').value,
+        status: document.getElementById('filtro-status').value,
+        data: document.getElementById('filtro-data').value,
+    });
+
+    try {
+        const response = await fetch(`${API_URL}/api/backoffice/agendamentos?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.status === 401) {
+            logout();
+            showModal('erro', 'Sessão Expirada', 'Por favor, faça login novamente.');
+            return;
+        }
+        const agendamentos = await response.json();
+        if (agendamentos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
+            return;
+        }
+        agendamentos.forEach(ag => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${ag.numero_nota}</td>
+                <td>${ag.responsavel_pelo_agendamento}</td>
+                <td>${ag.localidade}</td>
+                <td>${formatarData(ag.data_atual)}</td>
+                <td>${ag.periodo_atual}</td>
+                <td><span class="status-${ag.status}">${ag.status.toUpperCase()}</span></td>
+                <td>
+                    ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="width:auto; padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : 'Finalizado'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
+    }
+}
+
+async function marcarComoConcluido(numeroNota) {
+    const token = localStorage.getItem('celesc_token');
+    try {
+        const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}/concluir`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Falha ao atualizar status.');
+        renderizarTabelaBackoffice();
+    } catch (error) {
+        showModal('erro', 'Erro', error.message);
+    }
+}
+
+document.getElementById('filtro-localidade').addEventListener('change', renderizarTabelaBackoffice);
+document.getElementById('filtro-status').addEventListener('change', renderizarTabelaBackoffice);
+document.getElementById('filtro-data').addEventListener('change', renderizarTabelaBackoffice);
+
+// Define a data mínima para agendamento
+function setDataMinima() {
+    const campoData = document.getElementById('data');
+    if (campoData) {
+        const hoje = new Date();
+        // Adiciona 3 dias úteis a partir de amanhã
+        let diasUteisAdicionados = 0;
+        let dataAtual = new Date(hoje);
+        
+        while (diasUteisAdicionados < 3) {
+            dataAtual.setDate(dataAtual.getDate() + 1);
+            const diaDaSemana = dataAtual.getDay();
+            if (diaDaSemana !== 0 && diaDaSemana !== 6) {
+                diasUteisAdicionados++;
+            }
+        }
+        campoData.min = dataAtual.toISOString().split('T')[0];
+    }
+}
+
+window.onload = setDataMinima;
