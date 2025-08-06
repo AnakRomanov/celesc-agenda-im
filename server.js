@@ -6,21 +6,60 @@ const jwt = require('jsonwebtoken');
 
 // --- Configuração Inicial ---
 const app = express();
-const PORT = process.env.PORT || 3000; // O Render usa a variável de ambiente PORT
+const PORT = process.env.PORT || 3000;
 
 // --- Conexão com o Banco de Dados (PostgreSQL) ---
-// O Render fornecerá a string de conexão através da variável de ambiente DATABASE_URL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Necessário para conexões no Render
+    rejectUnauthorized: false
   }
 });
 
+// --- Função para Inicializar o Banco de Dados ---
+// Esta função verifica se a tabela existe e a cria se necessário.
+async function inicializarDB() {
+  const client = await pool.connect();
+  try {
+    const tableExists = await client.query(
+      "SELECT to_regclass('public.agendamentos')"
+    );
+
+    if (tableExists.rows[0].to_regclass === null) {
+      console.log("Tabela 'agendamentos' não encontrada. Criando tabela...");
+      await client.query(`
+        CREATE TABLE agendamentos (
+          id SERIAL PRIMARY KEY,
+          numero_nota VARCHAR(255) NOT NULL UNIQUE,
+          numero_instalacao VARCHAR(255) NOT NULL,
+          responsavel_pelo_agendamento VARCHAR(255) NOT NULL,
+          localidade VARCHAR(50) NOT NULL,
+          data_original DATE NOT NULL,
+          periodo_original VARCHAR(10) NOT NULL,
+          data_atual DATE NOT NULL,
+          periodo_atual VARCHAR(10) NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'agendado',
+          quantidade_reagendamentos INT NOT NULL DEFAULT 0,
+          reagendado_em TIMESTAMP,
+          criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("Tabela 'agendamentos' criada com sucesso.");
+    } else {
+      console.log("Tabela 'agendamentos' já existe.");
+    }
+  } catch (err) {
+    console.error("Erro durante a inicialização do banco de dados:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // --- Middlewares ---
-app.use(cors()); // Permite que o front-end (em outro domínio) acesse a API
-app.use(express.json()); // Permite que o servidor entenda JSON
-app.use(express.static('public')); // Serve os arquivos estáticos da pasta 'public'
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
 // --- Funções Auxiliares de Data ---
 function adicionarDiasUteis(dataInicial, dias) {
@@ -256,10 +295,42 @@ app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async
         console.error('Erro ao concluir agendamento:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
     }
-}); // <-- ESTA É A LINHA QUE FOI CORRIGIDA
+});
 
 
 // --- Iniciar o Servidor ---
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  try {
+    // Garante que o banco de dados esteja pronto antes de o servidor aceitar conexões
+    await inicializarDB();
     console.log(`Servidor rodando na porta ${PORT}`);
+  } catch (err) {
+    console.error("Falha ao iniciar o servidor.", err);
+    process.exit(1);
+  }
 });
+```json
+{
+  "name": "celesc-agendamento-backend",
+  "version": "1.0.0",
+  "description": "API para o sistema de agendamento da CELESC.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "author": "Seu Nome",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
