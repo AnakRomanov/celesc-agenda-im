@@ -17,14 +17,10 @@ const pool = new Pool({
 });
 
 // --- Função para Inicializar o Banco de Dados ---
-// Esta função verifica se a tabela existe e a cria se necessário.
 async function inicializarDB() {
   const client = await pool.connect();
   try {
-    const tableExists = await client.query(
-      "SELECT to_regclass('public.agendamentos')"
-    );
-
+    const tableExists = await client.query("SELECT to_regclass('public.agendamentos')");
     if (tableExists.rows[0].to_regclass === null) {
       console.log("Tabela 'agendamentos' não encontrada. Criando tabela...");
       await client.query(`
@@ -68,14 +64,42 @@ function adicionarDiasUteis(dataInicial, dias) {
     while (diasAdicionados < dias) {
         data.setDate(data.getDate() + 1);
         const diaDaSemana = data.getUTCDay();
-        if (diaDaSemana !== 0 && diaDaSemana !== 6) {
-            diasAdicionados++;
-        }
+        if (diaDaSemana !== 0 && diaDaSemana !== 6) diasAdicionados++;
     }
     return data;
 }
 
-// --- ROTAS DA API PÚBLICA ---
+// --- ROTAS DA API ---
+
+// [GET] Rota de disponibilidade
+app.get('/api/disponibilidade/:localidade', async (req, res) => {
+    const { localidade } = req.params;
+    try {
+        const result = await pool.query(
+            `SELECT data_atual, periodo_atual, COUNT(*) as count
+             FROM agendamentos
+             WHERE localidade = $1 AND status != 'concluido' AND data_atual >= NOW()
+             GROUP BY data_atual, periodo_atual`,
+            [localidade]
+        );
+        
+        const disponibilidade = {};
+        result.rows.forEach(row => {
+            if (row.count >= 2) {
+                const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
+                if (!disponibilidade[dataFormatada]) {
+                    disponibilidade[dataFormatada] = [];
+                }
+                disponibilidade[dataFormatada].push(row.periodo_atual);
+            }
+        });
+        res.json(disponibilidade);
+    } catch (error) {
+        console.error('Erro ao buscar disponibilidade:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+});
+
 
 // [POST] Criar um novo agendamento
 app.post('/api/agendamentos', async (req, res) => {
@@ -86,6 +110,14 @@ app.post('/api/agendamentos', async (req, res) => {
     }
 
     const dataSelecionada = new Date(data + "T00:00:00Z");
+    const hoje = new Date();
+    const dataMaxima = new Date();
+    dataMaxima.setDate(hoje.getDate() + 30);
+
+    if (dataSelecionada > dataMaxima) {
+        return res.status(400).json({ message: 'O agendamento não pode ser feito com mais de 30 dias de antecedência.' });
+    }
+    
     const diaDaSemana = dataSelecionada.getUTCDay();
     if (diaDaSemana === 0 || diaDaSemana === 6) {
         return res.status(400).json({ message: 'Agendamentos são permitidos apenas em dias úteis.' });
@@ -269,7 +301,7 @@ app.get('/api/backoffice/agendamentos', authenticateToken, async (req, res) => {
     if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
     }
-    query += ' ORDER BY data_atual DESC';
+    query += ' ORDER BY data_atual DESC, id DESC';
 
     try {
         const result = await pool.query(query, params);
@@ -297,11 +329,41 @@ app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async
     }
 });
 
+// [DELETE] Excluir um agendamento
+app.delete('/api/backoffice/agendamentos/:nota', authenticateToken, async (req, res) => {
+    const { nota } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM agendamentos WHERE numero_nota = $1', [nota]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Agendamento não encontrado para exclusão.' });
+        }
+        res.json({ message: `Agendamento da nota ${nota} foi excluído com sucesso.` });
+    } catch (error) {
+        console.error('Erro ao excluir agendamento:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+});
+
+// [POST] Excluir múltiplos agendamentos
+app.post('/api/backoffice/agendamentos/excluir-massa', authenticateToken, async (req, res) => {
+    const { notas } = req.body;
+    if (!notas || !Array.isArray(notas) || notas.length === 0) {
+        return res.status(400).json({ message: 'Nenhuma nota fornecida para exclusão.' });
+    }
+    try {
+        // Usando ANY para comparar com um array de valores
+        const result = await pool.query('DELETE FROM agendamentos WHERE numero_nota = ANY($1::text[])', [notas]);
+        res.json({ message: `${result.rowCount} agendamentos foram excluídos com sucesso.` });
+    } catch (error) {
+        console.error('Erro ao excluir múltiplos agendamentos:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+});
+
 
 // --- Iniciar o Servidor ---
 app.listen(PORT, async () => {
   try {
-    // Garante que o banco de dados esteja pronto antes de o servidor aceitar conexões
     await inicializarDB();
     console.log(`Servidor rodando na porta ${PORT}`);
   } catch (err) {
