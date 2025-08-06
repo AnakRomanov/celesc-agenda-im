@@ -131,6 +131,10 @@
             gap: 20px;
             margin-top: 10px;
         }
+        .periodo-options label.disabled {
+            color: #999;
+            cursor: not-allowed;
+        }
 
         .checkbox-group {
             display: flex;
@@ -171,6 +175,11 @@
             color: white;
         }
         .btn-secondary:hover { background-color: #5a6268; }
+        .btn-danger {
+            background-color: var(--cor-erro);
+            color: white;
+        }
+        .btn-danger:hover { background-color: #c82333; }
 
         .consulta-resultado {
             padding: 20px;
@@ -200,6 +209,9 @@
             font-size: 0.9em;
             white-space: nowrap;
         }
+        .backoffice-table th:first-child, .backoffice-table td:first-child {
+            text-align: center;
+        }
 
         .backoffice-table th {
             background-color: var(--cor-azul-celesc);
@@ -210,6 +222,15 @@
         .status-reagendado { color: #ffc107; font-weight: bold; }
         .status-concluido { color: var(--cor-sucesso); font-weight: bold; }
 
+        .backoffice-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .backoffice-filters {
             display: flex;
             flex-wrap: wrap;
@@ -217,6 +238,13 @@
             margin-bottom: 20px;
         }
         .backoffice-filters .form-group { flex: 1; min-width: 150px; }
+
+        .action-icon {
+            cursor: pointer;
+            color: var(--cor-erro);
+            font-size: 1.2em;
+        }
+        .action-icon:hover { color: #a0202d; }
 
         .modal {
             display: none;
@@ -251,6 +279,7 @@
             header h1 { font-size: 1.5em; }
             .nav-tabs { font-size: 0.9em; }
             .nav-tab { padding: 10px; }
+            .backoffice-actions { flex-direction: column; align-items: stretch; }
         }
     </style>
     <!-- FIM DO CSS -->
@@ -302,8 +331,8 @@
                     <div class="form-group">
                         <label>Selecione o Turno</label>
                         <div class="periodo-options">
-                            <label><input type="radio" name="periodo" value="manha" required> Manhã</label>
-                            <label><input type="radio" name="periodo" value="tarde" required> Tarde</label>
+                            <label for="periodo_manha"><input type="radio" id="periodo_manha" name="periodo" value="manha" required> Manhã</label>
+                            <label for="periodo_tarde"><input type="radio" id="periodo_tarde" name="periodo" value="tarde" required> Tarde</label>
                         </div>
                     </div>
                     <div class="form-group checkbox-group">
@@ -371,10 +400,16 @@
                 </div>
             </div>
 
+            <div class="backoffice-actions">
+                <button id="btn-exportar" class="btn-secondary" style="width: auto; padding: 8px 15px;">Exportar para CSV/Excel</button>
+                <button id="btn-excluir-selecionados" class="btn-danger" style="width: auto; padding: 8px 15px; display: none;">Excluir Selecionados</button>
+            </div>
+
             <div class="table-wrapper">
                 <table class="backoffice-table">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="selecionar-todos"></th>
                             <th>Nº Nota</th>
                             <th>Responsável</th>
                             <th>Localidade</th>
@@ -401,9 +436,8 @@
 
     <!-- INÍCIO DO JAVASCRIPT -->
     <script>
-        // IMPORTANTE: Coloque a URL do seu back-end do Render aqui.
-        // Verifique se a URL está correta. A sua parece ser 'https://celesc-agenda-im.onrender.com'
         const API_URL = 'https://celesc-agenda-im.onrender.com';
+        let disponibilidade = {};
 
         // --- FUNÇÕES AUXILIARES ---
         function formatarData(dataString) {
@@ -412,6 +446,10 @@
             const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
             const ano = data.getUTCFullYear();
             return `${dia}/${mes}/${ano}`;
+        }
+        
+        function hojeFormatado() {
+            return new Date().toISOString().split('T')[0];
         }
 
         // --- CONTROLE DE INTERFACE (UI) ---
@@ -423,15 +461,11 @@
         navTabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.getAttribute('data-tab');
-                
                 navTabs.forEach(nav => nav.classList.remove('active'));
                 tab.classList.add('active');
-
                 tabContents.forEach(content => {
                     content.classList.remove('active');
-                    if (content.id === `tab-${tabName}`) {
-                        content.classList.add('active');
-                    }
+                    if (content.id === `tab-${tabName}`) content.classList.add('active');
                 });
             });
         });
@@ -451,16 +485,50 @@
         }
 
         // --- LÓGICA DE AGENDAMENTO ---
-        document.getElementById('form-agendamento').addEventListener('submit', async (e) => {
+        const formAgendamento = document.getElementById('form-agendamento');
+        const selectLocalidade = document.getElementById('localidade');
+        const inputData = document.getElementById('data');
+
+        async function buscarDisponibilidade() {
+            const localidade = selectLocalidade.value;
+            if (!localidade) return;
+            try {
+                const response = await fetch(`${API_URL}/api/disponibilidade/${localidade}`);
+                if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
+                disponibilidade = await response.json();
+                verificarDisponibilidadeTurnos();
+            } catch (error) {
+                console.error(error);
+                disponibilidade = {};
+            }
+        }
+
+        function verificarDisponibilidadeTurnos() {
+            const dataSelecionada = inputData.value;
+            const turnosIndisponiveis = disponibilidade[dataSelecionada] || [];
+
+            document.getElementById('periodo_manha').disabled = turnosIndisponiveis.includes('manha');
+            document.getElementById('periodo_tarde').disabled = turnosIndisponiveis.includes('tarde');
+
+            document.querySelector('label[for="periodo_manha"]').classList.toggle('disabled', turnosIndisponiveis.includes('manha'));
+            document.querySelector('label[for="periodo_tarde"]').classList.toggle('disabled', turnosIndisponiveis.includes('tarde'));
+
+            if (document.getElementById('periodo_manha').disabled) document.getElementById('periodo_manha').checked = false;
+            if (document.getElementById('periodo_tarde').disabled) document.getElementById('periodo_tarde').checked = false;
+        }
+
+        selectLocalidade.addEventListener('change', buscarDisponibilidade);
+        inputData.addEventListener('input', verificarDisponibilidadeTurnos);
+
+        formAgendamento.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const form = e.target;
             const agendamentoData = {
-                numero_nota: form.numero_nota.value.trim(),
-                numero_instalacao: form.numero_instalacao.value.trim(),
-                responsavel_pelo_agendamento: form.responsavel.value.trim(),
-                localidade: form.localidade.value,
-                data: form.data.value,
-                periodo: form.querySelector('input[name="periodo"]:checked')?.value,
+                numero_nota: formAgendamento.numero_nota.value.trim(),
+                numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
+                responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
+                localidade: formAgendamento.localidade.value,
+                data: formAgendamento.data.value,
+                periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
             try {
@@ -470,11 +538,10 @@
                     body: JSON.stringify(agendamentoData),
                 });
                 const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.message);
-                }
+                if (!response.ok) throw new Error(result.message);
                 showModal('sucesso', 'Agendamento Realizado!', `Sua inspeção foi agendada com sucesso. Número da Nota: ${result.agendamento.numero_nota}.`);
-                form.reset();
+                formAgendamento.reset();
+                buscarDisponibilidade(); // Atualiza a disponibilidade
             } catch (error) {
                 showModal('erro', 'Erro no Agendamento', error.message);
             }
@@ -487,34 +554,30 @@
         formConsulta.addEventListener('submit', async (e) => {
             e.preventDefault();
             const numeroNota = document.getElementById('consulta_numero_nota').value.trim();
+            if (!numeroNota) return;
+            
             consultaResultadoDiv.style.display = 'none';
             consultaResultadoDiv.innerHTML = '';
-
-            if (!numeroNota) return;
 
             try {
                 const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}`);
                 const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.message);
-                }
+                if (!response.ok) throw new Error(result.message);
                 
                 const { agendamento, podeReagendar, motivoBloqueio } = result;
                 
-                let htmlResultado = `
-                    <h3>Detalhes do Agendamento</h3>
+                let htmlResultado = `<h3>Detalhes do Agendamento</h3>
                     <p><strong>Número da Nota:</strong> ${agendamento.numero_nota}</p>
                     <p><strong>Responsável:</strong> ${agendamento.responsavel_pelo_agendamento}</p>
                     <p><strong>Localidade:</strong> ${agendamento.localidade}</p>
                     <p><strong>Data Agendada:</strong> ${formatarData(agendamento.data_atual)}</p>
                     <p><strong>Período:</strong> ${agendamento.periodo_atual}</p>
-                    <p><strong>Status:</strong> <span class="status-${agendamento.status}">${agendamento.status.toUpperCase()}</span></p>
-                `;
+                    <p><strong>Status:</strong> <span class="status-${agendamento.status}">${agendamento.status.toUpperCase()}</span></p>`;
 
                 if (podeReagendar) {
-                    htmlResultado += `
-                        <div id="reagendamento-form" style="margin-top: 20px;">
+                    htmlResultado += `<div id="reagendamento-form" style="margin-top: 20px;">
                             <h4>Reagendar Inspeção</h4>
+                            <p style="font-size:0.9em; color: #555;">As regras de disponibilidade e antecedência se aplicam.</p>
                             <div class="form-group">
                                 <label for="nova_data">Escolha a nova data</label>
                                 <input type="date" id="nova_data" required>
@@ -527,14 +590,14 @@
                                 </div>
                             </div>
                             <button class="btn" onclick="executarReagendamento('${agendamento.numero_nota}')">Confirmar Reagendamento</button>
-                        </div>
-                    `;
+                        </div>`;
                 } else if (agendamento.status !== 'concluido') {
                     htmlResultado += `<p style="color: var(--cor-erro); margin-top: 15px;"><strong>Reagendamento não permitido:</strong> ${motivoBloqueio}</p>`;
                 }
 
                 consultaResultadoDiv.innerHTML = htmlResultado;
                 consultaResultadoDiv.style.display = 'block';
+                if(podeReagendar) setDataMinima('nova_data', 30);
 
             } catch (error) {
                 showModal('erro', 'Erro na Consulta', error.message);
@@ -548,8 +611,7 @@
             };
 
             if (!reagendamentoData.data || !reagendamentoData.periodo) {
-                showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data e o novo período.');
-                return;
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data e o novo período.');
             }
 
             try {
@@ -559,9 +621,7 @@
                     body: JSON.stringify(reagendamentoData),
                 });
                 const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.message);
-                }
+                if (!response.ok) throw new Error(result.message);
                 showModal('sucesso', 'Reagendamento Concluído!', `Sua inspeção foi reagendada para ${formatarData(result.agendamento.data_atual)}.`);
                 consultaResultadoDiv.innerHTML = '';
                 consultaResultadoDiv.style.display = 'none';
@@ -599,9 +659,7 @@
             areaBackoffice.style.display = 'none';
             areaPublica.style.display = 'block';
             document.getElementById('senha').value = '';
-            
-            const agendarTab = document.querySelector('.nav-tab[data-tab="agendar"]');
-            if (agendarTab) agendarTab.click();
+            document.querySelector('.nav-tab[data-tab="agendar"]').click();
         }
 
         async function renderizarTabelaBackoffice() {
@@ -621,17 +679,16 @@
                 });
                 if (response.status === 401) {
                     logout();
-                    showModal('erro', 'Sessão Expirada', 'Por favor, faça login novamente.');
-                    return;
+                    return showModal('erro', 'Sessão Expirada', 'Por favor, faça login novamente.');
                 }
                 const agendamentos = await response.json();
                 if (agendamentos.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
-                    return;
+                    return tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
                 }
                 agendamentos.forEach(ag => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
+                        <td><input type="checkbox" class="checkbox-item" data-nota="${ag.numero_nota}"></td>
                         <td>${ag.numero_nota}</td>
                         <td>${ag.responsavel_pelo_agendamento}</td>
                         <td>${ag.localidade}</td>
@@ -639,17 +696,19 @@
                         <td>${ag.periodo_atual}</td>
                         <td><span class="status-${ag.status}">${ag.status.toUpperCase()}</span></td>
                         <td>
-                            ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="width:auto; padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : 'Finalizado'}
+                            ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : ''}
+                            <span class="action-icon" onclick="excluirAgendamento('${ag.numero_nota}')" title="Excluir">&#128465;</span>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
             }
         }
 
         async function marcarComoConcluido(numeroNota) {
+            if (!confirm('Tem certeza que deseja marcar este agendamento como concluído?')) return;
             const token = localStorage.getItem('celesc_token');
             try {
                 const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}/concluir`, {
@@ -662,30 +721,123 @@
                 showModal('erro', 'Erro', error.message);
             }
         }
+        
+        async function excluirAgendamento(numeroNota) {
+            if (!confirm(`Tem certeza que deseja excluir o agendamento da nota ${numeroNota}? Esta ação não pode ser desfeita.`)) return;
+            const token = localStorage.getItem('celesc_token');
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                 const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Excluído', result.message);
+                renderizarTabelaBackoffice();
+            } catch (error) {
+                showModal('erro', 'Erro ao Excluir', error.message);
+            }
+        }
 
         document.getElementById('filtro-localidade').addEventListener('change', renderizarTabelaBackoffice);
         document.getElementById('filtro-status').addEventListener('change', renderizarTabelaBackoffice);
         document.getElementById('filtro-data').addEventListener('change', renderizarTabelaBackoffice);
 
-        function setDataMinima() {
-            const campoData = document.getElementById('data');
+        // Lógica de seleção múltipla
+        document.getElementById('selecionar-todos').addEventListener('change', (e) => {
+            document.querySelectorAll('.checkbox-item').forEach(checkbox => checkbox.checked = e.target.checked);
+            toggleBotaoExcluir();
+        });
+
+        document.getElementById('tabela-agendamentos').addEventListener('change', (e) => {
+            if (e.target.classList.contains('checkbox-item')) {
+                toggleBotaoExcluir();
+            }
+        });
+
+        function toggleBotaoExcluir() {
+            const algumSelecionado = document.querySelectorAll('.checkbox-item:checked').length > 0;
+            document.getElementById('btn-excluir-selecionados').style.display = algumSelecionado ? 'inline-block' : 'none';
+        }
+
+        document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {
+            const selecionados = Array.from(document.querySelectorAll('.checkbox-item:checked')).map(cb => cb.dataset.nota);
+            if (selecionados.length === 0) return;
+            if (!confirm(`Tem certeza que deseja excluir os ${selecionados.length} agendamentos selecionados?`)) return;
+
+            const token = localStorage.getItem('celesc_token');
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/excluir-massa`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({ notas: selecionados })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Excluídos', result.message);
+                renderizarTabelaBackoffice();
+                toggleBotaoExcluir();
+            } catch (error) {
+                showModal('erro', 'Erro ao Excluir', error.message);
+            }
+        });
+
+        // Lógica de Exportação para CSV
+        document.getElementById('btn-exportar').addEventListener('click', () => {
+            const headers = ['NumeroNota', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
+            const rows = Array.from(document.querySelectorAll('#tabela-agendamentos tr'));
+            
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
+
+            rows.forEach(row => {
+                const cols = row.querySelectorAll('td');
+                if(cols.length === 0) return; // Ignora linha de "nenhum resultado"
+                const rowData = [
+                    cols[1].innerText, // Nota
+                    cols[2].innerText, // Responsável
+                    cols[3].innerText, // Localidade
+                    cols[4].innerText, // Data
+                    cols[5].innerText, // Período
+                    cols[6].innerText, // Status
+                ];
+                csvContent += rowData.join(',') + '\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `agendamentos_celesc_${hojeFormatado()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Define a data mínima e máxima para agendamento
+        function setDataMinima(elementId, diasMax) {
+            const campoData = document.getElementById(elementId);
             if (campoData) {
                 const hoje = new Date();
                 let diasUteisAdicionados = 0;
-                let dataAtual = new Date(hoje);
+                let dataMinima = new Date(hoje);
                 
                 while (diasUteisAdicionados < 3) {
-                    dataAtual.setDate(dataAtual.getDate() + 1);
-                    const diaDaSemana = dataAtual.getDay();
-                    if (diaDaSemana !== 0 && diaDaSemana !== 6) {
-                        diasUteisAdicionados++;
-                    }
+                    dataMinima.setDate(dataMinima.getDate() + 1);
+                    const diaDaSemana = dataMinima.getDay();
+                    if (diaDaSemana !== 0 && diaDaSemana !== 6) diasUteisAdicionados++;
                 }
-                campoData.min = dataAtual.toISOString().split('T')[0];
+                campoData.min = dataMinima.toISOString().split('T')[0];
+
+                if(diasMax) {
+                    const dataMaxima = new Date(hoje);
+                    dataMaxima.setDate(hoje.getDate() + diasMax);
+                    campoData.max = dataMaxima.toISOString().split('T')[0];
+                }
             }
         }
 
-        window.onload = setDataMinima;
+        window.onload = () => {
+            setDataMinima('data', 30);
+        };
     </script>
     <!-- FIM DO JAVASCRIPT -->
 </body>
