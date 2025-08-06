@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
 
 // --- Configuração Inicial ---
 const app = express();
@@ -41,33 +42,29 @@ function adicionarDiasUteis(dataInicial, dias) {
 app.post('/api/agendamentos', async (req, res) => {
     const { numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data, periodo } = req.body;
 
-    // Validação básica
     if (!numero_nota || !data || !periodo || !localidade || !responsavel_pelo_agendamento || !numero_instalacao) {
         return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
 
-    const dataSelecionada = new Date(data + "T00:00:00");
+    const dataSelecionada = new Date(data + "T00:00:00Z");
     const diaDaSemana = dataSelecionada.getUTCDay();
     if (diaDaSemana === 0 || diaDaSemana === 6) {
         return res.status(400).json({ message: 'Agendamentos são permitidos apenas em dias úteis.' });
     }
 
-    const dataMinima = adicionarDiasUteis(new Date(), 2); // 3 dias de antecedência
+    const dataMinima = adicionarDiasUteis(new Date(), 2);
     if (dataSelecionada < dataMinima) {
         return res.status(400).json({ message: 'O agendamento deve ter no mínimo 3 dias úteis de antecedência.' });
     }
 
     try {
         const client = await pool.connect();
-
-        // Verificar se a nota já existe
         const notaExistente = await client.query('SELECT 1 FROM agendamentos WHERE numero_nota = $1', [numero_nota]);
         if (notaExistente.rowCount > 0) {
             client.release();
             return res.status(409).json({ message: 'Já existe um agendamento com este Número de Nota.' });
         }
         
-        // Verificar limite de vagas
         const vagas = await client.query(
             'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, localidade]
@@ -77,7 +74,6 @@ app.post('/api/agendamentos', async (req, res) => {
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
         }
 
-        // Inserir no banco de dados
         const result = await client.query(
             `INSERT INTO agendamentos (numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data_original, periodo_original, data_atual, periodo_atual)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -137,8 +133,7 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
         return res.status(400).json({ message: 'Nova data e período são obrigatórios.' });
     }
     
-    // Validações de data (semelhantes às de criação)
-    const dataSelecionada = new Date(data + "T00:00:00");
+    const dataSelecionada = new Date(data + "T00:00:00Z");
     if (dataSelecionada.getUTCDay() === 0 || dataSelecionada.getUTCDay() === 6) {
         return res.status(400).json({ message: 'Reagendamentos são permitidos apenas em dias úteis.' });
     }
@@ -149,8 +144,6 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
 
     try {
         const client = await pool.connect();
-        
-        // Buscar agendamento original para validações
         const agendamentoOriginal = await client.query('SELECT * FROM agendamentos WHERE numero_nota = $1', [nota]);
         if (agendamentoOriginal.rowCount === 0) {
             client.release();
@@ -162,7 +155,6 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             return res.status(403).json({ message: 'Este agendamento não pode mais ser reagendado.' });
         }
 
-        // Verificar vagas
         const vagas = await client.query(
             'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, ag.localidade]
@@ -172,7 +164,6 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
         }
 
-        // Atualizar
         const result = await client.query(
             `UPDATE agendamentos 
              SET data_atual = $1, periodo_atual = $2, status = 'reagendado', quantidade_reagendamentos = 1, reagendado_em = NOW()
@@ -191,11 +182,8 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
 
 
 // --- ROTAS DO BACKOFFICE (Protegidas) ---
-
-// Simulação de login - Em um app real, use um sistema de autenticação robusto
 const BACKOFFICE_PASSWORD = process.env.BACKOFFICE_PASSWORD || 'celesc123';
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo-super-secreto';
-const jwt = require('jsonwebtoken');
 
 app.post('/api/login', (req, res) => {
     const { senha } = req.body;
@@ -207,7 +195,6 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-// Middleware para verificar o token JWT
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -220,7 +207,6 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// [GET] Obter todos os agendamentos para o backoffice
 app.get('/api/backoffice/agendamentos', authenticateToken, async (req, res) => {
     const { localidade, status, data } = req.query;
     let query = 'SELECT * FROM agendamentos';
@@ -255,7 +241,6 @@ app.get('/api/backoffice/agendamentos', authenticateToken, async (req, res) => {
     }
 });
 
-// [POST] Marcar um agendamento como concluído
 app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async (req, res) => {
     const { nota } = req.params;
     try {
@@ -271,12 +256,10 @@ app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async
         console.error('Erro ao concluir agendamento:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
     }
-});
+}); // <-- ESTA É A LINHA QUE FOI CORRIGIDA
 
 
 // --- Iniciar o Servidor ---
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
-
-```json
