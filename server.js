@@ -105,6 +105,12 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
 app.post('/api/agendamentos', async (req, res) => {
     const { numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data, periodo } = req.body;
 
+    // Validação do formato da nota
+    const notaPattern = /^(0?709)\d+$/;
+    if (!notaPattern.test(numero_nota)) {
+        return res.status(400).json({ message: 'Número de nota incorreto, informe a nota com início 709.' });
+    }
+
     if (!numero_nota || !data || !periodo || !localidade || !responsavel_pelo_agendamento || !numero_instalacao) {
         return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
@@ -170,17 +176,18 @@ app.get('/api/agendamentos/:nota', async (req, res) => {
         }
         
         const agendamento = result.rows[0];
-        const podeReagendar = agendamento.quantidade_reagendamentos === 0 && agendamento.status !== 'concluido';
-        const dataAgendamento = new Date(agendamento.data_atual);
-        const dataMinimaParaReagendar = adicionarDiasUteis(new Date(), 2);
+        // REGRA ATUALIZADA: Pode reagendar se nunca foi reagendado antes.
+        const podeReagendar = agendamento.quantidade_reagendamentos === 0;
         
         let motivoBloqueio = '';
-        if (agendamento.status === 'concluido') {
-            motivoBloqueio = 'Este agendamento já foi concluído.';
-        } else if (agendamento.quantidade_reagendamentos > 0) {
+        if (!podeReagendar) {
             motivoBloqueio = 'O limite de 1 reagendamento por nota já foi atingido.';
-        } else if (dataAgendamento < dataMinimaParaReagendar) {
-            motivoBloqueio = 'O prazo para reagendamento (3 dias úteis de antecedência) expirou.';
+        }
+        
+        const dataAgendamento = new Date(agendamento.data_atual);
+        const dataMinimaParaReagendar = adicionarDiasUteis(new Date(), 2);
+        if (podeReagendar && agendamento.status !== 'concluido' && dataAgendamento < dataMinimaParaReagendar) {
+             motivoBloqueio = 'O prazo para reagendamento (3 dias úteis de antecedência) expirou.';
         }
 
         res.json({ 
@@ -221,7 +228,8 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             return res.status(404).json({ message: 'Agendamento não encontrado.' });
         }
         const ag = agendamentoOriginal.rows[0];
-        if (ag.quantidade_reagendamentos > 0 || ag.status === 'concluido') {
+        // REGRA ATUALIZADA: Permite reagendar mesmo se concluído, desde que a contagem seja 0.
+        if (ag.quantidade_reagendamentos > 0) {
             client.release();
             return res.status(403).json({ message: 'Este agendamento não pode mais ser reagendado.' });
         }
@@ -351,7 +359,6 @@ app.post('/api/backoffice/agendamentos/excluir-massa', authenticateToken, async 
         return res.status(400).json({ message: 'Nenhuma nota fornecida para exclusão.' });
     }
     try {
-        // Usando ANY para comparar com um array de valores
         const result = await pool.query('DELETE FROM agendamentos WHERE numero_nota = ANY($1::text[])', [notas]);
         res.json({ message: `${result.rowCount} agendamentos foram excluídos com sucesso.` });
     } catch (error) {
