@@ -529,7 +529,8 @@
         }
 
         selectLocalidade.addEventListener('change', buscarDisponibilidade);
-        inputData.addEventListener('input', verificarDisponibilidadeTurnos);
+        // CORREÇÃO: Mudar de 'input' para 'change' para maior confiabilidade
+        inputData.addEventListener('change', verificarDisponibilidadeTurnos);
 
         formAgendamento.addEventListener('submit', async (e) => {
             e.preventDefault();
