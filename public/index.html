@@ -531,6 +531,12 @@
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
+            // Validação do Número da Nota
+            const notaPattern = /^(0?709)\d+$/;
+            if (!notaPattern.test(agendamentoData.numero_nota)) {
+                return showModal('erro', 'Número de Nota Inválido', 'Número de nota incorreto, informe a nota com início 709.');
+            }
+
             try {
                 const response = await fetch(`${API_URL}/api/agendamentos`, {
                     method: 'POST',
@@ -591,7 +597,7 @@
                             </div>
                             <button class="btn" onclick="executarReagendamento('${agendamento.numero_nota}')">Confirmar Reagendamento</button>
                         </div>`;
-                } else if (agendamento.status !== 'concluido') {
+                } else {
                     htmlResultado += `<p style="color: var(--cor-erro); margin-top: 15px;"><strong>Reagendamento não permitido:</strong> ${motivoBloqueio}</p>`;
                 }
 
