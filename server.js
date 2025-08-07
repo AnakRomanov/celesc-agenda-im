@@ -83,17 +83,22 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
             [localidade]
         );
         
-        const disponibilidade = {};
+        const turnosIndisponiveis = {};
         result.rows.forEach(row => {
             if (row.count >= 2) {
                 const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
-                if (!disponibilidade[dataFormatada]) {
-                    disponibilidade[dataFormatada] = [];
+                if (!turnosIndisponiveis[dataFormatada]) {
+                    turnosIndisponiveis[dataFormatada] = [];
                 }
-                disponibilidade[dataFormatada].push(row.periodo_atual);
+                turnosIndisponiveis[dataFormatada].push(row.periodo_atual);
             }
         });
-        res.json(disponibilidade);
+
+        const diasLotados = Object.keys(turnosIndisponiveis).filter(
+            data => turnosIndisponiveis[data].length >= 2
+        );
+
+        res.json({ turnosIndisponiveis, diasLotados });
     } catch (error) {
         console.error('Erro ao buscar disponibilidade:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
@@ -105,7 +110,6 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
 app.post('/api/agendamentos', async (req, res) => {
     const { numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data, periodo } = req.body;
 
-    // Validação do formato da nota
     const notaPattern = /^(0?709)\d+$/;
     if (!notaPattern.test(numero_nota)) {
         return res.status(400).json({ message: 'Número de nota incorreto, informe a nota com início 709.' });
@@ -176,7 +180,6 @@ app.get('/api/agendamentos/:nota', async (req, res) => {
         }
         
         const agendamento = result.rows[0];
-        // REGRA ATUALIZADA: Pode reagendar se nunca foi reagendado antes.
         const podeReagendar = agendamento.quantidade_reagendamentos === 0;
         
         let motivoBloqueio = '';
@@ -228,7 +231,6 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             return res.status(404).json({ message: 'Agendamento não encontrado.' });
         }
         const ag = agendamentoOriginal.rows[0];
-        // REGRA ATUALIZADA: Permite reagendar mesmo se concluído, desde que a contagem seja 0.
         if (ag.quantidade_reagendamentos > 0) {
             client.release();
             return res.status(403).json({ message: 'Este agendamento não pode mais ser reagendado.' });
