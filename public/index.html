@@ -437,7 +437,8 @@
     <!-- INÍCIO DO JAVASCRIPT -->
     <script>
         const API_URL = 'https://celesc-agenda-im.onrender.com';
-        let disponibilidade = {};
+        let turnosIndisponiveis = {};
+        let diasLotados = [];
 
         // --- FUNÇÕES AUXILIARES ---
         function formatarData(dataString) {
@@ -495,23 +496,33 @@
             try {
                 const response = await fetch(`${API_URL}/api/disponibilidade/${localidade}`);
                 if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
-                disponibilidade = await response.json();
+                const data = await response.json();
+                turnosIndisponiveis = data.turnosIndisponiveis || {};
+                diasLotados = data.diasLotados || [];
                 verificarDisponibilidadeTurnos();
             } catch (error) {
                 console.error(error);
-                disponibilidade = {};
+                turnosIndisponiveis = {};
+                diasLotados = [];
             }
         }
 
         function verificarDisponibilidadeTurnos() {
             const dataSelecionada = inputData.value;
-            const turnosIndisponiveis = disponibilidade[dataSelecionada] || [];
+            
+            if (diasLotados.includes(dataSelecionada)) {
+                showModal('erro', 'Data Indisponível', 'Este dia não possui mais vagas disponíveis. Por favor, escolha outra data.');
+                inputData.value = ''; // Limpa a data inválida
+                return;
+            }
 
-            document.getElementById('periodo_manha').disabled = turnosIndisponiveis.includes('manha');
-            document.getElementById('periodo_tarde').disabled = turnosIndisponiveis.includes('tarde');
+            const indisponiveis = turnosIndisponiveis[dataSelecionada] || [];
 
-            document.querySelector('label[for="periodo_manha"]').classList.toggle('disabled', turnosIndisponiveis.includes('manha'));
-            document.querySelector('label[for="periodo_tarde"]').classList.toggle('disabled', turnosIndisponiveis.includes('tarde'));
+            document.getElementById('periodo_manha').disabled = indisponiveis.includes('manha');
+            document.getElementById('periodo_tarde').disabled = indisponiveis.includes('tarde');
+
+            document.querySelector('label[for="periodo_manha"]').classList.toggle('disabled', indisponiveis.includes('manha'));
+            document.querySelector('label[for="periodo_tarde"]').classList.toggle('disabled', indisponiveis.includes('tarde'));
 
             if (document.getElementById('periodo_manha').disabled) document.getElementById('periodo_manha').checked = false;
             if (document.getElementById('periodo_tarde').disabled) document.getElementById('periodo_tarde').checked = false;
@@ -531,7 +542,6 @@
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
-            // Validação do Número da Nota
             const notaPattern = /^(0?709)\d+$/;
             if (!notaPattern.test(agendamentoData.numero_nota)) {
                 return showModal('erro', 'Número de Nota Inválido', 'Número de nota incorreto, informe a nota com início 709.');
@@ -547,7 +557,7 @@
                 if (!response.ok) throw new Error(result.message);
                 showModal('sucesso', 'Agendamento Realizado!', `Sua inspeção foi agendada com sucesso. Número da Nota: ${result.agendamento.numero_nota}.`);
                 formAgendamento.reset();
-                buscarDisponibilidade(); // Atualiza a disponibilidade
+                buscarDisponibilidade();
             } catch (error) {
                 showModal('erro', 'Erro no Agendamento', error.message);
             }
