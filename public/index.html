@@ -17,7 +17,7 @@
         :root {
             --cor-azul-celesc: #005691;
             --cor-amarelo-celesc: #fdb913;
-            --cor-fundo: #f0f4f8; /* Tom de azul mais claro */
+            --cor-fundo: #005691; /* Fundo azul Celesc */
             --cor-texto: #334155;
             --cor-texto-claro: #64748b;
             --cor-borda: #cbd5e1;
@@ -31,11 +31,12 @@
             background-color: var(--cor-fundo);
             color: var(--cor-texto);
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
             min-height: 100vh;
+            box-sizing: border-box;
         }
 
         .container {
@@ -44,7 +45,7 @@
             background: var(--cor-branco);
             padding: 40px;
             border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
         header {
@@ -117,6 +118,16 @@
         .tab-content.active { display: block; }
         .form-group { margin-bottom: 22px; }
 
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
         label {
             display: block;
             margin-bottom: 8px;
@@ -129,7 +140,7 @@
         input[type="date"],
         input[type="password"],
         select,
-        .flatpickr-input { /* Estilo para o novo calendário */
+        .flatpickr-input {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid var(--cor-borda);
@@ -179,12 +190,12 @@
         .btn {
             display: inline-block;
             width: 100%;
-            padding: 15px;
+            padding: 14px;
             background: linear-gradient(to right, var(--cor-amarelo-celesc), #fca503);
             color: var(--cor-azul-celesc);
             border: none;
             border-radius: 8px;
-            font-size: 1.1em;
+            font-size: 1.05em;
             font-weight: 600;
             cursor: pointer;
             text-align: center;
@@ -291,7 +302,7 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(15, 23, 42, 0.5);
             backdrop-filter: blur(5px);
         }
         .modal-content {
@@ -317,6 +328,7 @@
             .nav-tabs { font-size: 0.9em; }
             .nav-tab { padding: 10px; }
             .backoffice-actions { flex-direction: column; align-items: stretch; }
+            .form-grid { grid-template-columns: 1fr; }
         }
     </style>
     <!-- FIM DO CSS -->
@@ -325,7 +337,7 @@
 
     <div class="container">
         <header>
-            <img src="https://www.celesc.com.br/images/identidade/logo-celesc-horizontal.png" alt="Logo Celesc" onerror="this.style.display='none'">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Celesc_logo.svg/2560px-Celesc_logo.svg.png" alt="Logo Celesc">
             <div>
                 <h1>Agendamento de Inspeção da Medição</h1>
                 <p>Sistema para agendamento e consulta de inspeções</p>
@@ -344,29 +356,31 @@
             <div id="tab-agendar" class="tab-content active">
                 <h2>Preencha os dados para agendar</h2>
                 <form id="form-agendamento">
-                    <div class="form-group">
-                        <label for="numero_nota">Número da Nota</label>
-                        <input type="text" id="numero_nota" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="numero_instalacao">Número da Instalação</label>
-                        <input type="text" id="numero_instalacao" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="responsavel">Responsável pelo Agendamento</label>
-                        <input type="text" id="responsavel" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="localidade">Selecione a Região</label>
-                        <select id="localidade" required>
-                            <option value="">-- Escolha uma opção --</option>
-                            <option value="Criciuma">Criciúma e região</option>
-                            <option value="Ararangua">Araranguá e região</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="data">Selecione a Data</label>
-                        <input type="text" id="data" required placeholder="Selecione uma data...">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="numero_nota">Número da Nota</label>
+                            <input type="text" id="numero_nota" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_instalacao">Número da Instalação</label>
+                            <input type="text" id="numero_instalacao" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="responsavel">Responsável pelo Agendamento</label>
+                            <input type="text" id="responsavel" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="localidade">Selecione a Região</label>
+                            <select id="localidade" required>
+                                <option value="">-- Escolha uma opção --</option>
+                                <option value="Criciuma">Criciúma e região</option>
+                                <option value="Ararangua">Araranguá e região</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="data">Selecione a Data</label>
+                            <input type="text" id="data" required placeholder="Primeiro, selecione a região...">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Selecione o Turno</label>
@@ -556,8 +570,13 @@
         async function buscarDisponibilidade() {
             const localidade = selectLocalidade.value;
             if (calendario) calendario.clear();
-            if (!localidade) return;
+            if (!localidade) {
+                calendario.set('disable', [() => true]);
+                inputData.placeholder = "Primeiro, selecione a região...";
+                return;
+            }
 
+            inputData.placeholder = "Carregando datas...";
             try {
                 const response = await fetch(`${API_URL}/api/disponibilidade/${localidade}`);
                 if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
@@ -565,21 +584,18 @@
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
                 
-                if (calendario) calendario.destroy();
+                const newDisableRules = [
+                    function(date) { return (date.getDay() === 0 || date.getDay() === 6); },
+                    ...diasLotados
+                ];
+                calendario.set('disable', newDisableRules);
                 
-                calendario = inicializarCalendario("#data", {
-                    disable: [
-                        function(date) { return (date.getDay() === 0 || date.getDay() === 6); },
-                        ...diasLotados
-                    ],
-                    onChange: function(selectedDates, dateStr, instance) {
-                        verificarDisponibilidadeTurnos();
-                    }
-                });
+                inputData.placeholder = "Selecione uma data...";
             } catch (error) {
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
+                inputData.placeholder = "Erro ao carregar datas.";
             }
         }
 
@@ -608,13 +624,13 @@
                 numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
                 responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
                 localidade: formAgendamento.localidade.value,
-                data: calendario.selectedDates[0].toISOString().split('T')[0],
+                data: calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null,
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
-            const notaPattern = /^(0?709)\d+$/;
+            const notaPattern = /^(0?709)\d{8}$/;
             if (!notaPattern.test(agendamentoData.numero_nota)) {
-                return showModal('erro', 'Número de Nota Inválido', 'Número de nota incorreto, informe a nota com início 709.');
+                return showModal('erro', 'Número de Nota Inválido', 'A nota deve começar com 709 e conter 11 dígitos. Por favor, confirme o número informado.');
             }
 
             try {
@@ -694,6 +710,9 @@
 
         async function executarReagendamento(numeroNota) {
             const novaDataInput = document.getElementById('nova_data')._flatpickr;
+            if (!novaDataInput.selectedDates[0]) {
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data.');
+            }
             const reagendamentoData = {
                 data: novaDataInput.selectedDates[0].toISOString().split('T')[0],
                 periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
@@ -896,6 +915,7 @@
 
         window.onload = () => {
             calendario = inicializarCalendario("#data");
+            calendario.set('disable', [() => true]);
         };
     </script>
     <!-- FIM DO JAVASCRIPT -->
