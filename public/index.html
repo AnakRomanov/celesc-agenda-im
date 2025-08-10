@@ -562,7 +562,7 @@
         }
 
         function inicializarCalendario(elementSelector, extraConfig = {}) {
-            const minDate = calcularDataMinimaUteis(2); // corresponde à regra do backend (2 dias úteis)
+            const minDate = calcularDataMinimaUteis(3); // corresponde à regra do backend (2 dias úteis)
             const maxDate = new Date();
             maxDate.setDate(maxDate.getDate() + 30);
 
@@ -577,7 +577,34 @@
                 disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
                 ...extraConfig
             };
-            return flatpickr(elementSelector, config);
+            return 
+flatpickr("#data", {
+    altInput: true,
+    altFormat: "d-m-Y",
+    dateFormat: "Y-m-d",
+    disable: [
+        function(date) {
+            // Bloqueia finais de semana
+            if (date.getDay() === 0 || date.getDay() === 6) return true;
+            // Bloqueia os 3 próximos dias úteis
+            let hoje = new Date();
+            let diasUteisContados = 0;
+            let dataTemp = new Date(hoje);
+            while (diasUteisContados < 3) {
+                dataTemp.setDate(hoje.getDate() + diasUteisContados + 1);
+                if (dataTemp.getDay() !== 0 && dataTemp.getDay() !== 6) {
+                    if (date.toDateString() === dataTemp.toDateString()) return true;
+                    diasUteisContados++;
+                } else {
+                    diasUteisContados++;
+                }
+            }
+            return false;
+        }
+    ],
+    onChange: verificarDisponibilidadeTurnos
+});
+
         }
 
         async function obterDisponibilidade(localidade) {
@@ -596,16 +623,21 @@
             }
         }
 
-        function aplicarBloqueiosEmCalendario(calInstance, diasArray) {
+        function aplicarBloqueiosEmCalendario(calInstance, diasArray, minDate) {
             // transforma array de "YYYY-MM-DD" em Set para busca rápida
             const diasSet = new Set((diasArray || []).map(s => String(s)));
+            // garante que minDate é um objeto Date sem horas
+            const minD = minDate instanceof Date ? new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : null;
             const regra = function(date) {
-                const y = date.getFullYear();
-                const m = String(date.getMonth() + 1).padStart(2, '0');
-                const d = String(date.getDate()).padStart(2, '0');
-                const key = `${y}-${m}-${d}`;
-                // bloqueia finais de semana OU dias lotados retornados pelo servidor
-                return diasSet.has(key) || date.getDay() === 0 || date.getDay() === 6;
+                // normaliza a data atual sem horas
+                const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${dd}`;
+                // bloqueia se for anterior à data mínima (3 dias úteis), finais de semana ou dia lotado
+                if (minD && d < minD) return true;
+                return diasSet.has(key) || d.getDay() === 0 || d.getDay() === 6;
             };
             calInstance.set('disable', [regra]);
         }
@@ -626,7 +658,9 @@
             // atualiza estado global (usado pelo calendário principal)
             turnosIndisponiveis = data.turnosIndisponiveis || {};
             diasLotados = data.diasLotados || [];
-            aplicarBloqueiosEmCalendario(calendario, diasLotados);
+            const minDate = calcularDataMinimaUteis(3);
+            calendario.set('minDate', minDate);
+            aplicarBloqueiosEmCalendario(calendario, diasLotados, minDate);
             // associa turnos ao próprio calendário principal para uso em onChange
             calendario._turnosIndisponiveis = turnosIndisponiveis;
             inputData.placeholder = "Selecione uma data...";
@@ -761,7 +795,9 @@
                     const novaCal = inicializarCalendario("#nova_data", { onChange: verificarDisponibilidadeTurnos });
                     const disponibilidade = await obterDisponibilidade(agendamento.localidade);
                     novaCal._turnosIndisponiveis = disponibilidade.turnosIndisponiveis || {};
-                    aplicarBloqueiosEmCalendario(novaCal, disponibilidade.diasLotados || []);
+                    const minDateNova = calcularDataMinimaUteis(3);
+                    novaCal.set('minDate', minDateNova);
+                    aplicarBloqueiosEmCalendario(novaCal, disponibilidade.diasLotados || [], minDateNova);
 
                     // adiciona listener no botão confirmar reagendamento
                     document.getElementById('btn-confirmar-reagendamento').addEventListener('click', () => executarReagendamento(agendamento.numero_nota, novaCal));
