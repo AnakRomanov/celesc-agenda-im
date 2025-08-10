@@ -494,16 +494,18 @@
 
     <!-- INÍCIO DO JAVASCRIPT -->
     <script>
-        const API_URL = 'https://celesc-agenda-im.onrender.com';
+        // Se você estiver servindo o front junto com o backend, use window.location.origin
+        const API_URL = window.location.origin || 'http://localhost:3000';
         let turnosIndisponiveis = {};
         let diasLotados = [];
         let calendario;
 
         function formatarData(dataString) {
-            const data = new Date(dataString);
-            const dia = String(data.getUTCDate()).padStart(2, '0');
-            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
-            const ano = data.getUTCFullYear();
+            // Garante que datas sem timezone sejam interpretadas corretamente
+            const data = new Date(dataString + 'T00:00:00');
+            const dia = String(data.getDate()).padStart(2, '0');
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const ano = data.getFullYear();
             return `${dia}/${mes}/${ano}`;
         }
         
@@ -545,80 +547,132 @@
         const selectLocalidade = document.getElementById('localidade');
         const inputData = document.getElementById('data');
 
-        function inicializarCalendario(elementId, extraConfig = {}) {
+        // calcula data mínima adicionando 'diasUteis' dias úteis (ignora sáb/dom)
+        function calcularDataMinimaUteis(diasUteis) {
             const hoje = new Date();
-            let diasUteisAdicionados = 0;
-            let dataMinima = new Date(hoje);
-            while (diasUteisAdicionados < 3) {
-                dataMinima.setDate(dataMinima.getDate() + 1);
-                if (dataMinima.getDay() !== 0 && dataMinima.getDay() !== 6) diasUteisAdicionados++;
+            let data = new Date(hoje);
+            let contador = 0;
+            while (contador < diasUteis) {
+                data.setDate(data.getDate() + 1);
+                const dow = data.getDay(); // 0 domingo, 6 sábado
+                if (dow !== 0 && dow !== 6) contador++;
             }
-            const dataMaxima = new Date();
-            dataMaxima.setDate(new Date().getDate() + 30);
+            data.setHours(0,0,0,0);
+            return data;
+        }
+
+        function inicializarCalendario(elementSelector, extraConfig = {}) {
+            const minDate = calcularDataMinimaUteis(2); // corresponde à regra do backend (2 dias úteis)
+            const maxDate = new Date();
+            maxDate.setDate(maxDate.getDate() + 30);
 
             const config = {
                 locale: "pt",
                 altInput: true,
-                altFormat: "d/m/Y",
-                dateFormat: "Y-m-d",
-                minDate: dataMinima,
-                maxDate: dataMaxima,
+                altFormat: "d-m-Y", // exibição para usuário: dd-mm-aaaa
+                dateFormat: "Y-m-d", // formato interno usado pelo flatpickr / pelo servidor
+                minDate: minDate,
+                maxDate: maxDate,
+                // inicialmente bloqueia só sáb/dom; bloqueios dinâmicos aplicados depois via aplicarBloqueiosEmCalendario
                 disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
                 ...extraConfig
             };
-            return flatpickr(elementId, config);
+            return flatpickr(elementSelector, config);
         }
 
-        async function buscarDisponibilidade() {
-            const localidade = selectLocalidade.value;
-            if (calendario) calendario.clear();
+        async function obterDisponibilidade(localidade) {
+            if (!localidade) return { turnosIndisponiveis: {}, diasLotados: [] };
+            try {
+                const response = await fetch(`${API_URL}/api/disponibilidade/${encodeURIComponent(localidade)}`);
+                if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
+                const data = await response.json();
+                return {
+                    turnosIndisponiveis: data.turnosIndisponiveis || {},
+                    diasLotados: data.diasLotados || []
+                };
+            } catch (err) {
+                console.error(err);
+                return { turnosIndisponiveis: {}, diasLotados: [] };
+            }
+        }
+
+        function aplicarBloqueiosEmCalendario(calInstance, diasArray) {
+            // transforma array de "YYYY-MM-DD" em Set para busca rápida
+            const diasSet = new Set((diasArray || []).map(s => String(s)));
+            const regra = function(date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${d}`;
+                // bloqueia finais de semana OU dias lotados retornados pelo servidor
+                return diasSet.has(key) || date.getDay() === 0 || date.getDay() === 6;
+            };
+            calInstance.set('disable', [regra]);
+        }
+
+        // busca disponibilidade e aplica bloqueio no calendário principal (id="data")
+        async function buscarDisponibilidade(localidadeOverride) {
+            const localidade = localidadeOverride || selectLocalidade.value;
+            if (!calendario) return;
+
             if (!localidade) {
-                calendario.set('disable', [() => true]);
+                calendario.set('disable', [() => true]); // desabilita tudo até escolher localidade
                 inputData.placeholder = "Primeiro, selecione a região...";
                 return;
             }
 
             inputData.placeholder = "Carregando datas...";
-            try {
-                const response = await fetch(`${API_URL}/api/disponibilidade/${localidade}`);
-                if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
-                const data = await response.json();
-                turnosIndisponiveis = data.turnosIndisponiveis || {};
-                diasLotados = data.diasLotados || [];
-                
-                const newDisableRules = [
-                    function(date) { return (date.getDay() === 0 || date.getDay() === 6); },
-                    ...diasLotados
-                ];
-                calendario.set('disable', newDisableRules);
-                
-                inputData.placeholder = "Selecione uma data...";
-            } catch (error) {
-                console.error(error);
-                turnosIndisponiveis = {};
-                diasLotados = [];
-                inputData.placeholder = "Erro ao carregar datas.";
+            const data = await obterDisponibilidade(localidade);
+            // atualiza estado global (usado pelo calendário principal)
+            turnosIndisponiveis = data.turnosIndisponiveis || {};
+            diasLotados = data.diasLotados || [];
+            aplicarBloqueiosEmCalendario(calendario, diasLotados);
+            // associa turnos ao próprio calendário principal para uso em onChange
+            calendario._turnosIndisponiveis = turnosIndisponiveis;
+            inputData.placeholder = "Selecione uma data...";
+        }
+
+        // Checa a disponibilidade dos turnos (usada como onChange do flatpickr)
+        function verificarDisponibilidadeTurnos(selectedDates, dateStr, instance) {
+            if (!selectedDates || selectedDates.length === 0) return;
+            const ymd = instance.formatDate(selectedDates[0], 'Y-m-d');
+            // procura os turnos associados à instância (se for um calendário criado para reagendamento ele terá _turnosIndisponiveis próprio)
+            const fonteTurnos = instance._turnosIndisponiveis || turnosIndisponiveis || {};
+            const indisponiveis = fonteTurnos[ymd] || [];
+
+            // detecta qual conjunto de inputs de período deve ser atualizado (formulário principal ou formulário de reagendamento)
+            const inputId = (instance.input && instance.input.id) || (instance._input && instance._input.id) || null;
+            let manhaInput, tardeInput, manhaLabel, tardeLabel;
+
+            if (inputId === 'data') {
+                manhaInput = document.getElementById('periodo_manha');
+                tardeInput = document.getElementById('periodo_tarde');
+                manhaLabel = document.querySelector('label[for="periodo_manha"]');
+                tardeLabel = document.querySelector('label[for="periodo_tarde"]');
+            } else {
+                // reagendamento: inputs criados dinamicamente dentro do #reagendamento-form
+                manhaInput = document.querySelector('#reagendamento-form input[name="novo_periodo"][value="manha"]');
+                tardeInput = document.querySelector('#reagendamento-form input[name="novo_periodo"][value="tarde"]');
+                manhaLabel = manhaInput ? manhaInput.closest('label') : null;
+                tardeLabel = tardeInput ? tardeInput.closest('label') : null;
+            }
+
+            if (manhaInput) {
+                const disabled = indisponiveis.includes('manha');
+                manhaInput.disabled = disabled;
+                if (manhaLabel) manhaLabel.classList.toggle('disabled', disabled);
+                if (disabled) manhaInput.checked = false;
+            }
+            if (tardeInput) {
+                const disabled = indisponiveis.includes('tarde');
+                tardeInput.disabled = disabled;
+                if (tardeLabel) tardeLabel.classList.toggle('disabled', disabled);
+                if (disabled) tardeInput.checked = false;
             }
         }
 
-        function verificarDisponibilidadeTurnos() {
-            const dataSelecionada = calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null;
-            if (!dataSelecionada) return;
+        selectLocalidade.addEventListener('change', () => buscarDisponibilidade());
 
-            const indisponiveis = turnosIndisponiveis[dataSelecionada] || [];
-
-            document.getElementById('periodo_manha').disabled = indisponiveis.includes('manha');
-            document.getElementById('periodo_tarde').disabled = indisponiveis.includes('tarde');
-
-            document.querySelector('label[for="periodo_manha"]').classList.toggle('disabled', indisponiveis.includes('manha'));
-            document.querySelector('label[for="periodo_tarde"]').classList.toggle('disabled', indisponiveis.includes('tarde'));
-
-            if (document.getElementById('periodo_manha').disabled) document.getElementById('periodo_manha').checked = false;
-            if (document.getElementById('periodo_tarde').disabled) document.getElementById('periodo_tarde').checked = false;
-        }
-
-        selectLocalidade.addEventListener('change', buscarDisponibilidade);
-        
         formAgendamento.addEventListener('submit', async (e) => {
             e.preventDefault();
             const agendamentoData = {
@@ -626,7 +680,7 @@
                 numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
                 responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
                 localidade: formAgendamento.localidade.value,
-                data: calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null,
+                data: calendario.selectedDates[0] ? calendario.formatDate(calendario.selectedDates[0], 'Y-m-d') : null,
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
@@ -642,13 +696,13 @@
                     body: JSON.stringify(agendamentoData),
                 });
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.message);
+                if (!response.ok) throw new Error(result.message || 'Erro no servidor');
                 showModal('sucesso', 'Agendamento Realizado!', `Sua inspeção foi agendada com sucesso. Número da Nota: ${result.agendamento.numero_nota}.`);
                 formAgendamento.reset();
                 calendario.clear();
-                buscarDisponibilidade();
+                await buscarDisponibilidade(); // atualiza bloqueios depois do agendamento
             } catch (error) {
-                showModal('erro', 'Erro no Agendamento', error.message);
+                showModal('erro', 'Erro no Agendamento', error.message || String(error));
             }
         });
 
@@ -664,9 +718,9 @@
             consultaResultadoDiv.innerHTML = '';
 
             try {
-                const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}`);
+                const response = await fetch(`${API_URL}/api/agendamentos/${encodeURIComponent(numeroNota)}`);
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.message);
+                if (!response.ok) throw new Error(result.message || 'Erro na consulta');
                 
                 const { agendamento, podeReagendar, motivoBloqueio } = result;
                 
@@ -693,7 +747,7 @@
                                     <label><input type="radio" name="novo_periodo" value="tarde" required> Tarde</label>
                                 </div>
                             </div>
-                            <button class="btn" onclick="executarReagendamento('${agendamento.numero_nota}')">Confirmar Reagendamento</button>
+                            <button class="btn" id="btn-confirmar-reagendamento">Confirmar Reagendamento</button>
                         </div>`;
                 } else {
                     htmlResultado += `<p style="color: var(--cor-erro); margin-top: 15px;"><strong>Reagendamento não permitido:</strong> ${motivoBloqueio}</p>`;
@@ -701,22 +755,30 @@
 
                 consultaResultadoDiv.innerHTML = htmlResultado;
                 consultaResultadoDiv.style.display = 'block';
-                if(podeReagendar) {
-                    inicializarCalendario("#nova_data");
+
+                if (podeReagendar) {
+                    // inicializa calendário para a nova_data e aplica bloqueios específicos da localidade do agendamento
+                    const novaCal = inicializarCalendario("#nova_data", { onChange: verificarDisponibilidadeTurnos });
+                    const disponibilidade = await obterDisponibilidade(agendamento.localidade);
+                    novaCal._turnosIndisponiveis = disponibilidade.turnosIndisponiveis || {};
+                    aplicarBloqueiosEmCalendario(novaCal, disponibilidade.diasLotados || []);
+
+                    // adiciona listener no botão confirmar reagendamento
+                    document.getElementById('btn-confirmar-reagendamento').addEventListener('click', () => executarReagendamento(agendamento.numero_nota, novaCal));
                 }
 
             } catch (error) {
-                showModal('erro', 'Erro na Consulta', error.message);
+                showModal('erro', 'Erro na Consulta', error.message || String(error));
             }
         });
 
-        async function executarReagendamento(numeroNota) {
-            const novaDataInput = document.getElementById('nova_data')._flatpickr;
-            if (!novaDataInput.selectedDates[0]) {
+        async function executarReagendamento(numeroNota, novaCalInstance) {
+            const selected = novaCalInstance && novaCalInstance.selectedDates && novaCalInstance.selectedDates[0];
+            if (!selected) {
                 return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data.');
             }
             const reagendamentoData = {
-                data: novaDataInput.selectedDates[0].toISOString().split('T')[0],
+                data: novaCalInstance.formatDate(selected, 'Y-m-d'),
                 periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
             };
 
@@ -725,19 +787,19 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}/reagendar`, {
+                const response = await fetch(`${API_URL}/api/agendamentos/${encodeURIComponent(numeroNota)}/reagendar`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(reagendamentoData),
                 });
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.message);
+                if (!response.ok) throw new Error(result.message || 'Erro ao reagendar');
                 showModal('sucesso', 'Reagendamento Concluído!', `Sua inspeção foi reagendada para ${formatarData(result.agendamento.data_atual)}.`);
                 consultaResultadoDiv.innerHTML = '';
                 consultaResultadoDiv.style.display = 'none';
                 formConsulta.reset();
             } catch (error) {
-                showModal('erro', 'Erro ao Reagendar', error.message);
+                showModal('erro', 'Erro ao Reagendar', error.message || String(error));
             }
         }
 
@@ -752,14 +814,14 @@
                     body: JSON.stringify({ senha }),
                 });
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.message);
+                if (!response.ok) throw new Error(result.message || 'Erro no login');
 
                 localStorage.setItem('celesc_token', result.token);
                 areaPublica.style.display = 'none';
                 areaBackoffice.style.display = 'block';
                 renderizarTabelaBackoffice();
             } catch (error) {
-                showModal('erro', 'Acesso Negado', error.message);
+                showModal('erro', 'Acesso Negado', error.message || String(error));
             }
         });
 
@@ -820,14 +882,14 @@
             if (!confirm('Tem certeza que deseja marcar este agendamento como concluído?')) return;
             const token = localStorage.getItem('celesc_token');
             try {
-                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}/concluir`, {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${encodeURIComponent(numeroNota)}/concluir`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) throw new Error('Falha ao atualizar status.');
                 renderizarTabelaBackoffice();
             } catch (error) {
-                showModal('erro', 'Erro', error.message);
+                showModal('erro', 'Erro', error.message || String(error));
             }
         }
         
@@ -835,7 +897,7 @@
             if (!confirm(`Tem certeza que deseja excluir o agendamento da nota ${numeroNota}? Esta ação não pode ser desfeita.`)) return;
             const token = localStorage.getItem('celesc_token');
             try {
-                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}`, {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${encodeURIComponent(numeroNota)}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -844,7 +906,7 @@
                 showModal('sucesso', 'Excluído', result.message);
                 renderizarTabelaBackoffice();
             } catch (error) {
-                showModal('erro', 'Erro ao Excluir', error.message);
+                showModal('erro', 'Erro ao Excluir', error.message || String(error));
             }
         }
 
@@ -886,7 +948,7 @@
                 renderizarTabelaBackoffice();
                 toggleBotaoExcluir();
             } catch (error) {
-                showModal('erro', 'Erro ao Excluir', error.message);
+                showModal('erro', 'Erro ao Excluir', error.message || String(error));
             }
         });
 
@@ -915,14 +977,16 @@
             document.body.removeChild(link);
         });
 
-        window.onload = () => {
+        window.addEventListener('load', async () => {
             calendario = inicializarCalendario("#data", {
-                onChange: function(selectedDates, dateStr, instance) {
-                    verificarDisponibilidadeTurnos();
-                }
+                onChange: verificarDisponibilidadeTurnos
             });
+            // desabilita até o usuário escolher localidade
             calendario.set('disable', [() => true]);
-        };
+            // desabilita os botões de período inicialmente
+            document.getElementById('periodo_manha').disabled = true;
+            document.getElementById('periodo_tarde').disabled = true;
+        });
     </script>
     <!-- FIM DO JAVASCRIPT -->
 </body>
