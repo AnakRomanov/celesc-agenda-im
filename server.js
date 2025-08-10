@@ -11,9 +11,7 @@ const PORT = process.env.PORT || 3000;
 // --- Conexão com o Banco de Dados (PostgreSQL) ---
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // --- Função para Inicializar o Banco de Dados ---
@@ -21,7 +19,7 @@ async function inicializarDB() {
   const client = await pool.connect();
   try {
     const tableExists = await client.query("SELECT to_regclass('public.agendamentos')");
-    if (tableExists.rows[0].to_regclass === null) {
+    if (!tableExists.rows || tableExists.rows.length === 0 || tableExists.rows[0].to_regclass === null) {
       console.log("Tabela 'agendamentos' não encontrada. Criando tabela...");
       await client.query(`
         CREATE TABLE agendamentos (
@@ -63,9 +61,10 @@ function adicionarDiasUteis(dataInicial, dias) {
     let diasAdicionados = 0;
     while (diasAdicionados < dias) {
         data.setDate(data.getDate() + 1);
-        const diaDaSemana = data.getUTCDay();
+        const diaDaSemana = data.getDay(); // usar getDay (local) para consistência
         if (diaDaSemana !== 0 && diaDaSemana !== 6) diasAdicionados++;
     }
+    data.setHours(0,0,0,0);
     return data;
 }
 
@@ -75,26 +74,34 @@ function adicionarDiasUteis(dataInicial, dias) {
 app.get('/api/disponibilidade/:localidade', async (req, res) => {
     const { localidade } = req.params;
     try {
+        // contamos agendamentos não concluídos por data e período
         const result = await pool.query(
             `SELECT data_atual, periodo_atual, COUNT(*) as count
              FROM agendamentos
-             WHERE localidade = $1 AND status != 'concluido' AND data_atual >= NOW()
+             WHERE localidade = $1 AND status != 'concluido' AND data_atual >= CURRENT_DATE
              GROUP BY data_atual, periodo_atual`,
             [localidade]
         );
         
         const turnosIndisponiveis = {};
         result.rows.forEach(row => {
-            // CORREÇÃO: Garante que a data seja formatada como YYYY-MM-DD
-            const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
-            if (row.count >= 2) {
+            // garante que o count seja número
+            const cnt = parseInt(row.count, 10) || 0;
+            // formatar data como YYYY-MM-DD usando toISOString (UTC)
+            const dataObj = new Date(row.data_atual);
+            const dataFormatada = dataObj.toISOString().split('T')[0];
+            if (cnt >= 2) {
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
                 }
                 turnosIndisponiveis[dataFormatada].push(row.periodo_atual);
+            } else {
+                // se houver 1 vaga ocupada no período, ainda consideramos o período indisponível apenas se cnt >= 2
+                // aqui mantemos a lógica de bloquear apenas quando cnt >= 2 (limite de 2 vagas por período)
             }
         });
 
+        // diasLotados = datas para as quais ambos os períodos estão indisponíveis
         const diasLotados = Object.keys(turnosIndisponiveis).filter(
             data => turnosIndisponiveis[data].length >= 2
         );
@@ -120,7 +127,8 @@ app.post('/api/agendamentos', async (req, res) => {
         return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
 
-    const dataSelecionada = new Date(data + "T00:00:00Z");
+    // interpreta data no formato YYYY-MM-DD
+    const dataSelecionada = new Date(data + "T00:00:00");
     const hoje = new Date();
     const dataMaxima = new Date();
     dataMaxima.setDate(hoje.getDate() + 30);
@@ -129,7 +137,7 @@ app.post('/api/agendamentos', async (req, res) => {
         return res.status(400).json({ message: 'O agendamento não pode ser feito com mais de 30 dias de antecedência.' });
     }
     
-    const diaDaSemana = dataSelecionada.getUTCDay();
+    const diaDaSemana = dataSelecionada.getDay();
     if (diaDaSemana === 0 || diaDaSemana === 6) {
         return res.status(400).json({ message: 'Agendamentos são permitidos apenas em dias úteis.' });
     }
@@ -147,11 +155,12 @@ app.post('/api/agendamentos', async (req, res) => {
             return res.status(409).json({ message: 'Já existe um agendamento com este Número de Nota.' });
         }
         
-        const vagas = await client.query(
-            'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
+        const vagasRes = await client.query(
+            'SELECT COUNT(*) as cnt FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, localidade]
         );
-        if (vagas.rows[0].count >= 2) {
+        const vagas = parseInt(vagasRes.rows[0].cnt, 10) || 0;
+        if (vagas >= 2) {
             client.release();
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
         }
@@ -215,8 +224,8 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
         return res.status(400).json({ message: 'Nova data e período são obrigatórios.' });
     }
     
-    const dataSelecionada = new Date(data + "T00:00:00Z");
-    if (dataSelecionada.getUTCDay() === 0 || dataSelecionada.getUTCDay() === 6) {
+    const dataSelecionada = new Date(data + "T00:00:00");
+    if (dataSelecionada.getDay() === 0 || dataSelecionada.getDay() === 6) {
         return res.status(400).json({ message: 'Reagendamentos são permitidos apenas em dias úteis.' });
     }
     const dataMinima = adicionarDiasUteis(new Date(), 2);
@@ -237,11 +246,12 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             return res.status(403).json({ message: 'Este agendamento não pode mais ser reagendado.' });
         }
 
-        const vagas = await client.query(
-            'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
+        const vagasRes = await client.query(
+            'SELECT COUNT(*) as cnt FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, ag.localidade]
         );
-        if (vagas.rows[0].count >= 2) {
+        const vagas = parseInt(vagasRes.rows[0].cnt, 10) || 0;
+        if (vagas >= 2) {
             client.release();
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
         }
