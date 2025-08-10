@@ -85,8 +85,9 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
         
         const turnosIndisponiveis = {};
         result.rows.forEach(row => {
+            // CORREÇÃO: Garante que a data seja formatada como YYYY-MM-DD
+            const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
             if (row.count >= 2) {
-                const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
                 }
@@ -110,9 +111,9 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
 app.post('/api/agendamentos', async (req, res) => {
     const { numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data, periodo } = req.body;
 
-    const notaPattern = /^(0?709)\d+$/;
+    const notaPattern = /^(0?709)\d{8}$/;
     if (!notaPattern.test(numero_nota)) {
-        return res.status(400).json({ message: 'Número de nota incorreto, informe a nota com início 709.' });
+        return res.status(400).json({ message: 'A nota deve começar com 709 e conter 11 dígitos. Por favor, confirme o número informado.' });
     }
 
     if (!numero_nota || !data || !periodo || !localidade || !responsavel_pelo_agendamento || !numero_instalacao) {
