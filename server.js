@@ -76,28 +76,19 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
     try {
         // contamos agendamentos não concluídos por data e período
         const result = await pool.query(
-            `SELECT data_atual, periodo_atual, COUNT(*) as count
-             FROM agendamentos
-             WHERE localidade = $1 AND status != 'concluido' AND data_atual >= CURRENT_DATE
-             GROUP BY data_atual, periodo_atual`,
+            `SELECT to_char(data_atual, 'YYYY-MM-DD') as data_atual, periodo_atual, COUNT(*) as count FROM agendamentos WHERE localidade = $1 AND status != 'concluido' AND data_atual >= CURRENT_DATE GROUP BY data_atual, periodo_atual`,
             [localidade]
         );
         
         const turnosIndisponiveis = {};
         result.rows.forEach(row => {
-            // garante que o count seja número
             const cnt = parseInt(row.count, 10) || 0;
-            // formatar data como YYYY-MM-DD usando toISOString (UTC)
-            const dataObj = new Date(row.data_atual);
-            const dataFormatada = dataObj.toISOString().split('T')[0];
+            const dataFormatada = String(row.data_atual);
             if (cnt >= 2) {
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
                 }
                 turnosIndisponiveis[dataFormatada].push(row.periodo_atual);
-            } else {
-                // se houver 1 vaga ocupada no período, ainda consideramos o período indisponível apenas se cnt >= 2
-                // aqui mantemos a lógica de bloquear apenas quando cnt >= 2 (limite de 2 vagas por período)
             }
         });
 
