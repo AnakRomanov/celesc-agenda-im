@@ -4,15 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendamento de Inspeção - CELESC</title>
+    
+    <!-- Adicionado o CSS do novo calendário -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Adicionada a fonte Poppins do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- INÍCIO DO CSS -->
     <style>
         :root {
             --cor-azul-celesc: #005691;
             --cor-amarelo-celesc: #fdb913;
-            --cor-fundo: #005691; 
+            --cor-fundo: #005691; /* Fundo azul Celesc */
             --cor-texto: #334155;
             --cor-texto-claro: #64748b;
             --cor-borda: #cbd5e1;
@@ -23,12 +28,536 @@
             --cor-parcial: #fef9c3;
             --cor-lotado: #fee2e2;
         }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Alinha no topo para rolagens maiores */
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px; /* Aumentado para melhor visualização do backoffice */
+            background: var(--cor-branco);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        header img {
+            height: 40px;
+            width: auto;
+        }
+
+        header h1 {
+            color: var(--cor-azul-celesc);
+            font-size: 1.75em;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        header p {
+            color: var(--cor-texto-claro);
+            margin: 0;
+            font-size: 1em;
+        }
+
+        h2 {
+            color: var(--cor-azul-celesc);
+            font-size: 1.5em;
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .nav-tabs {
+            display: flex;
+            justify-content: center; /* Centraliza os tabs */
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 30px;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1em;
+            font-weight: 500;
+            color: var(--cor-texto-claro);
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .nav-tab:hover {
+            color: var(--cor-azul-celesc);
+        }
+
+        .nav-tab.active {
+            color: var(--cor-azul-celesc);
+            border-bottom-color: var(--cor-azul-celesc);
+            font-weight: 600;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 22px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.9em;
+            color: var(--cor-texto);
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="password"],
+        select,
+        .flatpickr-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1em;
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--cor-azul-celesc);
+            box-shadow: 0 0 0 3px rgba(0, 86, 145, 0.15);
+        }
+
+        .periodo-options {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .periodo-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+        }
+        .periodo-options label.disabled {
+            color: #999;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+        }
+        #confirmacao { margin-top: 5px; }
+        #confirmacao-msg { font-size: 0.9em; color: var(--cor-texto-claro); }
+
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(to right, var(--cor-amarelo-celesc), #fca503);
+            color: var(--cor-azul-celesc);
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05em;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 15px -5px rgba(253, 185, 19, 0.6);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px -5px rgba(253, 185, 19, 0.5);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn-secondary {
+            background: linear-gradient(to right, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px -5px rgba(108, 117, 125, 0.6);
+        }
+        .btn-secondary:hover { box-shadow: 0 7px 20px -5px rgba(108, 117, 125, 0.5); }
+        .btn-danger {
+            background: linear-gradient(to right, var(--cor-erro), #b91c1c);
+            color: white;
+            box-shadow: 0 4px 15px -5px rgba(220, 53, 69, 0.6);
+        }
+        .btn-danger:hover { box-shadow: 0 7px 20px -5px rgba(220, 53, 69, 0.5); }
+
+        .consulta-resultado {
+            padding: 25px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background-color: #f8fafc;
+            margin-top: 25px;
+        }
+        .consulta-resultado p { margin: 8px 0; }
+        .consulta-resultado strong { color: var(--cor-azul-celesc); }
+        
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+
+        .backoffice-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .backoffice-table th, .backoffice-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            font-size: 0.85em;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        .backoffice-table th:first-child, .backoffice-table td:first-child { width: 40px; text-align: center; } /* Checkbox */
+        .backoffice-table th:nth-child(2), .backoffice-table td:nth-child(2) { width: 120px; } /* Nota */
+        .backoffice-table th:nth-child(3), .backoffice-table td:nth-child(3) { width: 120px; } /* Instalação */
+        .backoffice-table th:nth-child(4), .backoffice-table td:nth-child(4) { width: auto; } /* Responsável */
+        .backoffice-table th:nth-child(9), .backoffice-table td:nth-child(9) { width: 130px; text-align: center; } /* Ações */
+
+        .backoffice-table tr:last-child td { border-bottom: none; }
+
+        .backoffice-table th {
+            background-color: #f8fafc;
+            color: var(--cor-azul-celesc);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+            letter-spacing: 0.5px;
+        }
+        .backoffice-table tr:hover { background-color: #f1f5f9; }
+        .status-agendado { color: #0284c7; font-weight: 600; }
+        .status-reagendado { color: #f59e0b; font-weight: 600; }
+        .status-concluido { color: var(--cor-sucesso); font-weight: 600; }
+
+        .backoffice-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .table-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .backoffice-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .backoffice-filters .form-group { flex: 1; min-width: 150px; }
+
+        .action-icon {
+            cursor: pointer;
+            color: var(--cor-texto-claro);
+            font-size: 1.2em;
+            transition: color 0.2s;
+            vertical-align: middle;
+        }
+        .action-icon:hover { color: var(--cor-erro); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 30px;
+            border: none;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .modal-content h3 { margin-top: 0; font-weight: 600; }
+        .modal-content .btn { margin-top: 20px; }
+        .modal-sucesso h3 { color: var(--cor-sucesso); }
+        .modal-erro h3 { color: var(--cor-erro); }
+
+        /* Estilos para o Calendário */
+        .flatpickr-day.disponivel {
+            background: var(--cor-disponivel);
+            border-color: var(--cor-disponivel);
+        }
+        .flatpickr-day.parcial {
+            background: var(--cor-parcial);
+            border-color: var(--cor-parcial);
+        }
+        .flatpickr-day.lotado {
+            background: var(--cor-lotado);
+            border-color: var(--cor-lotado);
+            color: #9ca3af;
+        }
+        .flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover {
+            background: #f1f5f9 !important;
+            border-color: #f1f5f9 !important;
+            color: #9ca3af !important;
+            cursor: not-allowed !important;
+        }
+
+
+        .calendario-legenda {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end; /* Alinha à direita */
+            font-size: 0.8em;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+        .legenda-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legenda-cor {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { padding: 20px; }
+            header h1 { font-size: 1.5em; }
+            .nav-tabs { font-size: 0.9em; }
+            .nav-tab { padding: 10px; }
+            .backoffice-actions { flex-direction: column; align-items: stretch; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
     </style>
+    <!-- FIM DO CSS -->
 </head>
 <body>
+
     <div class="container">
+        <header>
+            <img src="https://www.celesc.com.br/images/logo-celesc-horizontal-peq.png" alt="Logo Celesc">
+            <div>
+                <h1>Agendamento de Inspeção da Medição</h1>
+                <p>Sistema para agendamento e consulta de inspeções</p>
+            </div>
+        </header>
+
+        <!-- ÁREA PÚBLICA -->
+        <div id="area-publica">
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="agendar">Novo Agendamento</button>
+                <button class="nav-tab" data-tab="consultar">Consultar / Reagendar</button>
+                <button class="nav-tab" data-tab="backoffice-login">Acesso Restrito</button>
+            </div>
+
+            <!-- Aba de Agendamento -->
+            <div id="tab-agendar" class="tab-content active">
+                <h2>Preencha os dados para agendar</h2>
+                <form id="form-agendamento">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="numero_nota">Número da Nota</label>
+                            <input type="text" id="numero_nota" required placeholder="Ex: 70912345678">
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_instalacao">Número da Instalação</label>
+                            <input type="text" id="numero_instalacao" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="responsavel">Responsável pelo Agendamento</label>
+                            <input type="text" id="responsavel" required placeholder="Nome do atendente">
+                        </div>
+                        <div class="form-group">
+                            <label for="localidade">Selecione a Região</label>
+                            <select id="localidade" required>
+                                <option value="">-- Escolha uma opção --</option>
+                                <option value="Criciuma">Criciúma e região</option>
+                                <option value="Ararangua">Araranguá e região</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="data">Selecione a Data</label>
+                            <input type="text" id="data" required placeholder="Primeiro, selecione a região...">
+                        </div>
+                    </div>
+                    <div class="calendario-legenda">
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-disponivel);"></span> Disponível</div>
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-parcial);"></span> Parcial</div>
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-lotado);"></span> Lotado</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Selecione o Turno</label>
+                        <div class="periodo-options">
+                            <label for="periodo_manha"><input type="radio" id="periodo_manha" name="periodo" value="manha" required> Manhã</label>
+                            <label for="periodo_tarde"><input type="radio" id="periodo_tarde" name="periodo" value="tarde" required> Tarde</label>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="confirmacao" required>
+                        <label for="confirmacao" id="confirmacao-msg">Confirmo que atualizei o e-mail do solicitante no SAP CRM e informei que a confirmação do agendamento ocorrerá por esse contato.</label>
+                    </div>
+                    <button type="submit" class="btn">Agendar</button>
+                </form>
+            </div>
+
+            <!-- Aba de Consulta / Reagendamento -->
+            <div id="tab-consultar" class="tab-content">
+                <h2>Consulte ou reagende sua inspeção</h2>
+                <form id="form-consulta">
+                    <div class="form-group">
+                        <label for="consulta_numero_nota">Informe o Número da Nota</label>
+                        <input type="text" id="consulta_numero_nota" required placeholder="Ex: 70912345678">
+                    </div>
+                    <button type="submit" class="btn">Buscar Agendamento</button>
+                </form>
+                <div id="consulta-resultado" class="consulta-resultado" style="display: none;"></div>
+            </div>
+            
+            <!-- Aba de Login Backoffice -->
+            <div id="tab-backoffice-login" class="tab-content">
+                 <h2>Acesso Restrito - CELESC</h2>
+                 <form id="form-login">
+                    <div class="form-group">
+                        <label for="senha">Senha de Acesso</label>
+                        <input type="password" id="senha" required>
+                    </div>
+                    <button type="submit" class="btn">Entrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ÁREA RESTRITA (BACKOFFICE) -->
+        <div id="area-backoffice" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Painel de Controle de Agendamentos</h2>
+                <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 8px 15px;">Sair</button>
+            </div>
+            
+            <div class="backoffice-filters">
+                <div class="form-group">
+                    <label for="filtro-localidade">Localidade</label>
+                    <select id="filtro-localidade">
+                        <option value="">Todas</option>
+                        <option value="Criciuma">Criciúma</option>
+                        <option value="Ararangua">Araranguá</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filtro-status">Status</label>
+                    <select id="filtro-status">
+                        <option value="">Todos</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="reagendado">Reagendado</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                </div>
+                 <div class="form-group">
+                    <label for="filtro-data">Data</label>
+                    <input type="date" id="filtro-data">
+                </div>
+            </div>
+
+            <div class="backoffice-actions">
+                <button id="btn-exportar" class="btn-secondary" style="width: auto; padding: 8px 15px;">Exportar para CSV/Excel</button>
+                <button id="btn-excluir-selecionados" class="btn-danger" style="width: auto; padding: 8px 15px; display: none;">Excluir Selecionados</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="backoffice-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selecionar-todos"></th>
+                            <th>Nº Nota</th>
+                            <th>Nº Instalação</th>
+                            <th>Responsável</th>
+                            <th>Localidade</th>
+                            <th>Data Atual</th>
+                            <th>Período</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-agendamentos"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Notificação -->
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modal-content">
+            <h3 id="modal-titulo"></h3>
+            <p id="modal-mensagem"></p>
+            <button id="modal-btn-fechar" class="btn">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Adicionado o JS do novo calendário -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+
+    <!-- INÍCIO DO JAVASCRIPT -->
     <script>
         const API_URL = 'https://celesc-agenda-im.onrender.com';
         let turnosIndisponiveis = {};
@@ -116,38 +645,15 @@
             };
             return flatpickr(elementId, config);
         }
+
         async function buscarDisponibilidade() {
             const localidade = selectLocalidade.value;
             if (calendario) calendario.clear();
-            const hoje = new Date();
-            let diasUteisAdicionados = 0;
-            let dataMinima = new Date(hoje);
-            while (diasUteisAdicionados < 3) {
-                dataMinima.setDate(dataMinima.getDate() + 1);
-                if (dataMinima.getDay() !== 0 && dataMinima.getDay() !== 6) diasUteisAdicionados++;
-            }
-            const dataMaxima = new Date();
-            dataMaxima.setDate(hoje.getDate() + 30);
-            calendario.set('minDate', dataMinima);
-            calendario.set('maxDate', dataMaxima);
-
-            const feriados2025 = [
-                "2025-01-01", "2025-03-03", "2025-03-04", "2025-04-18", "2025-04-21",
-                "2025-05-01", "2025-06-19", "2025-09-07", "2025-10-12", "2025-11-02",
-                "2025-11-15", "2025-12-25"
-            ];
-
             if (!localidade) {
                 calendario.set('disable', [() => true]);
                 inputData.placeholder = "Primeiro, selecione a região...";
                 return;
             }
-            calendario.set('disable', [
-                function(date) {
-                    const dataStr = flatpickr.formatDate(date, "Y-m-d");
-                    return (date.getDay() === 0 || date.getDay() === 6 || feriados2025.includes(dataStr));
-                }
-            ]);
 
             inputData.placeholder = "Carregando datas...";
             try {
@@ -157,17 +663,18 @@
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
                 diasParciais = data.diasParciais || [];
+                
                 const newDisableRules = calendario.config.disable.slice(0, 1).concat(diasLotados);
                 calendario.set('disable', newDisableRules);
                 calendario.redraw();
+                
                 inputData.placeholder = "Selecione uma data...";
             } catch (error) {
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
                 diasParciais = [];
-                inputData.placeholder = "Erro ao carregar datas. Apenas dias úteis liberados.";
-                calendario.redraw();
+                inputData.placeholder = "Erro ao carregar datas.";
             }
         }
 
@@ -188,6 +695,311 @@
         }
 
         selectLocalidade.addEventListener('change', buscarDisponibilidade);
+        
+        formAgendamento.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const agendamentoData = {
+                numero_nota: formAgendamento.numero_nota.value.trim(),
+                numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
+                responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
+                localidade: formAgendamento.localidade.value,
+                data: calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null,
+                periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
+            };
+
+            const notaPattern = /^(0?709)\d{8}$/;
+            if (!notaPattern.test(agendamentoData.numero_nota)) {
+                return showModal('erro', 'Número de Nota Inválido', 'A nota deve começar com 709 e conter 11 dígitos. Por favor, confirme o número informado.');
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/agendamentos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(agendamentoData),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Agendamento Realizado!', `Sua inspeção foi agendada com sucesso. Número da Nota: ${result.agendamento.numero_nota}.`);
+                formAgendamento.reset();
+                calendario.clear();
+                buscarDisponibilidade();
+            } catch (error) {
+                showModal('erro', 'Erro no Agendamento', error.message);
+            }
+        });
+
+        const formConsulta = document.getElementById('form-consulta');
+        const consultaResultadoDiv = document.getElementById('consulta-resultado');
+
+        formConsulta.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const numeroNota = document.getElementById('consulta_numero_nota').value.trim();
+            if (!numeroNota) return;
+            
+            consultaResultadoDiv.style.display = 'none';
+            consultaResultadoDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}`);
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                
+                const { agendamento, podeReagendar, motivoBloqueio } = result;
+                
+                let htmlResultado = `<h3>Detalhes do Agendamento</h3>
+                    <p><strong>Número da Nota:</strong> ${agendamento.numero_nota}</p>
+                    <p><strong>Responsável:</strong> ${agendamento.responsavel_pelo_agendamento}</p>
+                    <p><strong>Localidade:</strong> ${agendamento.localidade}</p>
+                    <p><strong>Data Agendada:</strong> ${formatarData(agendamento.data_atual)}</p>
+                    <p><strong>Período:</strong> ${agendamento.periodo_atual}</p>
+                    <p><strong>Status:</strong> <span class="status-${agendamento.status}">${agendamento.status.toUpperCase()}</span></p>`;
+
+                if (podeReagendar) {
+                    htmlResultado += `<div id="reagendamento-form" style="margin-top: 20px;">
+                            <h4>Reagendar Inspeção</h4>
+                            <p style="font-size:0.9em; color: #555;">As regras de disponibilidade e antecedência se aplicam.</p>
+                            <div class="form-group">
+                                <label for="nova_data">Escolha a nova data</label>
+                                <input type="text" id="nova_data" required placeholder="Selecione uma data...">
+                            </div>
+                            <div class="form-group">
+                                <label>Escolha o novo período</label>
+                                <div class="periodo-options">
+                                    <label><input type="radio" name="novo_periodo" value="manha" required> Manhã</label>
+                                    <label><input type="radio" name="novo_periodo" value="tarde" required> Tarde</label>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="executarReagendamento('${agendamento.numero_nota}')">Confirmar Reagendamento</button>
+                        </div>`;
+                } else {
+                    htmlResultado += `<p style="color: var(--cor-erro); margin-top: 15px;"><strong>Reagendamento não permitido:</strong> ${motivoBloqueio}</p>`;
+                }
+
+                consultaResultadoDiv.innerHTML = htmlResultado;
+                consultaResultadoDiv.style.display = 'block';
+                if(podeReagendar) {
+                    inicializarCalendario("#nova_data");
+                }
+
+            } catch (error) {
+                showModal('erro', 'Erro na Consulta', error.message);
+            }
+        });
+
+        async function executarReagendamento(numeroNota) {
+            const novaDataInput = document.getElementById('nova_data')._flatpickr;
+            if (!novaDataInput.selectedDates[0]) {
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data.');
+            }
+            const reagendamentoData = {
+                data: novaDataInput.selectedDates[0].toISOString().split('T')[0],
+                periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
+            };
+
+            if (!reagendamentoData.data || !reagendamentoData.periodo) {
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data e o novo período.');
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/agendamentos/${numeroNota}/reagendar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reagendamentoData),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Reagendamento Concluído!', `Sua inspeção foi reagendada para ${formatarData(result.agendamento.data_atual)}.`);
+                consultaResultadoDiv.innerHTML = '';
+                consultaResultadoDiv.style.display = 'none';
+                formConsulta.reset();
+            } catch (error) {
+                showModal('erro', 'Erro ao Reagendar', error.message);
+            }
+        }
+
+        const formLogin = document.getElementById('form-login');
+        formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const senha = document.getElementById('senha').value;
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senha }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+
+                localStorage.setItem('celesc_token', result.token);
+                areaPublica.style.display = 'none';
+                areaBackoffice.style.display = 'block';
+                renderizarTabelaBackoffice();
+            } catch (error) {
+                showModal('erro', 'Acesso Negado', error.message);
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('celesc_token');
+            areaBackoffice.style.display = 'none';
+            areaPublica.style.display = 'block';
+            document.getElementById('senha').value = '';
+            document.querySelector('.nav-tab[data-tab="agendar"]').click();
+        }
+
+        async function renderizarTabelaBackoffice() {
+            const tbody = document.getElementById('tabela-agendamentos');
+            tbody.innerHTML = '';
+            const token = localStorage.getItem('celesc_token');
+
+            const params = new URLSearchParams({
+                localidade: document.getElementById('filtro-localidade').value,
+                status: document.getElementById('filtro-status').value,
+                data: document.getElementById('filtro-data').value,
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos?${params.toString()}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401) {
+                    logout();
+                    return showModal('erro', 'Sessão Expirada', 'Por favor, faça login novamente.');
+                }
+                const agendamentos = await response.json();
+                if (agendamentos.length === 0) {
+                    return tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
+                }
+                agendamentos.forEach(ag => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><input type="checkbox" class="checkbox-item" data-nota="${ag.numero_nota}"></td>
+                        <td>${ag.numero_nota}</td>
+                        <td>${ag.numero_instalacao}</td>
+                        <td>${ag.responsavel_pelo_agendamento}</td>
+                        <td>${ag.localidade}</td>
+                        <td>${formatarData(ag.data_atual)}</td>
+                        <td>${ag.periodo_atual}</td>
+                        <td><span class="status-${ag.status}">${ag.status.toUpperCase()}</span></td>
+                        <td>
+                            <div class="table-actions">
+                                ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : ''}
+                                <span class="action-icon" onclick="excluirAgendamento('${ag.numero_nota}')" title="Excluir">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                    </svg>
+                                </span>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
+            }
+        }
+
+        async function marcarComoConcluido(numeroNota) {
+            if (!confirm('Tem certeza que deseja marcar este agendamento como concluído?')) return;
+            const token = localStorage.getItem('celesc_token');
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}/concluir`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Falha ao atualizar status.');
+                renderizarTabelaBackoffice();
+            } catch (error) {
+                showModal('erro', 'Erro', error.message);
+            }
+        }
+        
+        async function excluirAgendamento(numeroNota) {
+            if (!confirm(`Tem certeza que deseja excluir o agendamento da nota ${numeroNota}? Esta ação não pode ser desfeita.`)) return;
+            const token = localStorage.getItem('celesc_token');
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/${numeroNota}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                 const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Excluído', result.message);
+                renderizarTabelaBackoffice();
+            } catch (error) {
+                showModal('erro', 'Erro ao Excluir', error.message);
+            }
+        }
+
+        document.getElementById('filtro-localidade').addEventListener('change', renderizarTabelaBackoffice);
+        document.getElementById('filtro-status').addEventListener('change', renderizarTabelaBackoffice);
+        document.getElementById('filtro-data').addEventListener('change', renderizarTabelaBackoffice);
+
+        document.getElementById('selecionar-todos').addEventListener('change', (e) => {
+            document.querySelectorAll('.checkbox-item').forEach(checkbox => checkbox.checked = e.target.checked);
+            toggleBotaoExcluir();
+        });
+
+        document.getElementById('tabela-agendamentos').addEventListener('change', (e) => {
+            if (e.target.classList.contains('checkbox-item')) {
+                toggleBotaoExcluir();
+            }
+        });
+
+        function toggleBotaoExcluir() {
+            const algumSelecionado = document.querySelectorAll('.checkbox-item:checked').length > 0;
+            document.getElementById('btn-excluir-selecionados').style.display = algumSelecionado ? 'inline-block' : 'none';
+        }
+
+        document.getElementById('btn-excluir-selecionados').addEventListener('click', async () => {
+            const selecionados = Array.from(document.querySelectorAll('.checkbox-item:checked')).map(cb => cb.dataset.nota);
+            if (selecionados.length === 0) return;
+            if (!confirm(`Tem certeza que deseja excluir os ${selecionados.length} agendamentos selecionados?`)) return;
+
+            const token = localStorage.getItem('celesc_token');
+            try {
+                const response = await fetch(`${API_URL}/api/backoffice/agendamentos/excluir-massa`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({ notas: selecionados })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+                showModal('sucesso', 'Excluídos', result.message);
+                renderizarTabelaBackoffice();
+                toggleBotaoExcluir();
+            } catch (error) {
+                showModal('erro', 'Erro ao Excluir', error.message);
+            }
+        });
+
+        document.getElementById('btn-exportar').addEventListener('click', () => {
+            const headers = ['NumeroNota', 'NumeroInstalacao', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
+            const rows = Array.from(document.querySelectorAll('#tabela-agendamentos tr'));
+            
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
+
+            rows.forEach(row => {
+                const cols = row.querySelectorAll('td');
+                if(cols.length === 0) return;
+                const rowData = [
+                    cols[1].innerText, cols[2].innerText, cols[3].innerText,
+                    cols[4].innerText, cols[5].innerText, cols[6].innerText, cols[7].innerText
+                ];
+                csvContent += rowData.join(',') + '\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `agendamentos_celesc_${hojeFormatado()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
         window.onload = () => {
             calendario = inicializarCalendario("#data", {
                 onDayCreate: function(dObj, dStr, fp, dayElem){
@@ -207,5 +1019,6 @@
             calendario.set('disable', [() => true]);
         };
     </script>
+    <!-- FIM DO JAVASCRIPT -->
 </body>
 </html>
