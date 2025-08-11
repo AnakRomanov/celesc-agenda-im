@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendamento de Inspeção - CELESC</title>
-    <!-- Adicionado o CSS do novo calendário -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- Adicionada a fonte Poppins do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- INÍCIO DO CSS -->
     <style>
-        /* ... todo o CSS permanece inalterado ... */
         :root {
             --cor-azul-celesc: #005691;
             --cor-amarelo-celesc: #fdb913;
-            --cor-fundo: #005691; /* Fundo azul Celesc */
+            --cor-fundo: #005691; 
             --cor-texto: #334155;
             --cor-texto-claro: #64748b;
             --cor-borda: #cbd5e1;
@@ -27,18 +23,12 @@
             --cor-parcial: #fef9c3;
             --cor-lotado: #fee2e2;
         }
-        /* ... resto do CSS é igual ao original ... */
     </style>
-    <!-- FIM DO CSS -->
 </head>
 <body>
     <div class="container">
-        <!-- ... conteúdo HTML inalterado ... -->
-        <!-- Todo o HTML permanece o mesmo até o script -->
-    <!-- Adicionado o JS do novo calendário -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
-    <!-- INÍCIO DO JAVASCRIPT -->
     <script>
         const API_URL = 'https://celesc-agenda-im.onrender.com';
         let turnosIndisponiveis = {};
@@ -126,13 +116,9 @@
             };
             return flatpickr(elementId, config);
         }
-
-        // ATUALIZAÇÃO: Corrige a lógica de bloqueio inicial do calendário e fallback de erro.
         async function buscarDisponibilidade() {
             const localidade = selectLocalidade.value;
             if (calendario) calendario.clear();
-
-            // Sempre libera as datas válidas pela regra, mesmo se a API falhar
             const hoje = new Date();
             let diasUteisAdicionados = 0;
             let dataMinima = new Date(hoje);
@@ -142,8 +128,6 @@
             }
             const dataMaxima = new Date();
             dataMaxima.setDate(hoje.getDate() + 30);
-
-            // Sempre aplica as datas liberadas (dias úteis e não feriados)
             calendario.set('minDate', dataMinima);
             calendario.set('maxDate', dataMaxima);
 
@@ -154,13 +138,10 @@
             ];
 
             if (!localidade) {
-                // Corrigido: mantém bloqueado até escolher localidade
                 calendario.set('disable', [() => true]);
                 inputData.placeholder = "Primeiro, selecione a região...";
                 return;
             }
-
-            // Inicialmente libera dias úteis e não feriados
             calendario.set('disable', [
                 function(date) {
                     const dataStr = flatpickr.formatDate(date, "Y-m-d");
@@ -176,20 +157,16 @@
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
                 diasParciais = data.diasParciais || [];
-                
-                // Bloqueia os dias lotados além das regras básicas
                 const newDisableRules = calendario.config.disable.slice(0, 1).concat(diasLotados);
                 calendario.set('disable', newDisableRules);
                 calendario.redraw();
                 inputData.placeholder = "Selecione uma data...";
             } catch (error) {
-                // Fallback: mantém só as regras mínimas
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
                 diasParciais = [];
                 inputData.placeholder = "Erro ao carregar datas. Apenas dias úteis liberados.";
-                // já está setado apenas dias úteis acima
                 calendario.redraw();
             }
         }
@@ -211,9 +188,6 @@
         }
 
         selectLocalidade.addEventListener('change', buscarDisponibilidade);
-
-        // ... resto do JS igual ao original ...
-
         window.onload = () => {
             calendario = inicializarCalendario("#data", {
                 onDayCreate: function(dObj, dStr, fp, dayElem){
@@ -230,10 +204,8 @@
                     verificarDisponibilidadeTurnos();
                 }
             });
-            // Corrigido: ao carregar, bloqueia tudo até escolher localidade
             calendario.set('disable', [() => true]);
         };
     </script>
-    <!-- FIM DO JAVASCRIPT -->
 </body>
 </html>
