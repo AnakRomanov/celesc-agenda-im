@@ -390,7 +390,7 @@
         }
     </style>
 <!-- FIM DO CSS -->
-</head>
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/><script src="https://cdn.jsdelivr.net/npm/flatpickr"></script></head>
 <body>
 <div class="container">
 <header>
@@ -1009,13 +1009,12 @@
 <!-- FIM DO JAVASCRIPT -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const calendario = document.getElementById("data");
-    const localidadeInput = document.getElementById("localidade");
+    const input = document.getElementById("data");
+    const localidadeSelect = document.getElementById("localidade");
 
-    async function carregarDisponibilidade(localidade) {
-        const response = await fetch(`/api/disponibilidade/${localidade}`);
-        if (!response.ok) return null;
-        return await response.json();
+    function isWeekend(date) {
+        const day = date.getDay();
+        return day === 0 || day === 6;
     }
 
     function adicionarDiasUteis(dataInicial, dias) {
@@ -1029,41 +1028,40 @@ document.addEventListener("DOMContentLoaded", function () {
         return data;
     }
 
-    function bloquearDatas(disponibilidade) {
-        const hoje = new Date();
-        const minDate = adicionarDiasUteis(hoje, 3);
-        const maxDate = new Date();
-        maxDate.setDate(hoje.getDate() + 30);
-
-        const diasLotados = disponibilidade.diasLotados || [];
-
-        calendario.min = minDate.toISOString().split("T")[0];
-        calendario.max = maxDate.toISOString().split("T")[0];
-
-        calendario.addEventListener("input", function () {
-            const dataSelecionada = new Date(this.value + "T00:00:00Z");
-            const diaDaSemana = dataSelecionada.getDay();
-            const dataFormatada = this.value;
-
-            if (diaDaSemana === 0 || diaDaSemana === 6) {
-                alert("Selecione apenas dias úteis.");
-                this.value = "";
-                return;
+    flatpickr(input, {
+        dateFormat: "Y-m-d",
+        disable: [
+            function (date) {
+                const hoje = new Date();
+                const minDate = adicionarDiasUteis(hoje, 2);
+                const maxDate = new Date();
+                maxDate.setDate(hoje.getDate() + 30);
+                return date < minDate || date > maxDate || isWeekend(date);
             }
+        ],
+        onOpen: async function () {
+            const localidade = localidadeSelect.value;
+            if (!localidade) return;
 
-            if (diasLotados.includes(dataFormatada)) {
-                alert("Este dia está lotado.");
-                this.value = "";
-                return;
+            try {
+                const res = await fetch(`/api/disponibilidade/${localidade}`);
+                const data = await res.json();
+                const diasLotados = data.diasLotados || [];
+
+                input._flatpickr.set("disable", [
+                    function (date) {
+                        const hoje = new Date();
+                        const minDate = adicionarDiasUteis(hoje, 2);
+                        const maxDate = new Date();
+                        maxDate.setDate(hoje.getDate() + 30);
+                        const isoDate = date.toISOString().split("T")[0];
+                        return date < minDate || date > maxDate || isWeekend(date) || diasLotados.includes(isoDate);
+                    }
+                ]);
+            } catch (err) {
+                console.error("Erro ao buscar disponibilidade:", err);
             }
-        });
-    }
-
-    localidadeInput.addEventListener("change", async function () {
-        const localidade = this.value;
-        if (!localidade) return;
-        const disponibilidade = await carregarDisponibilidade(localidade);
-        if (disponibilidade) bloquearDatas(disponibilidade);
+        }
     });
 });
 </script></body>
