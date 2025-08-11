@@ -10,46 +10,46 @@ const PORT = process.env.PORT || 3000;
 
 // --- Conexão com o Banco de Dados (PostgreSQL) ---
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // --- Função para Inicializar o Banco de Dados ---
 async function inicializarDB() {
-  const client = await pool.connect();
-  try {
-    const tableExists = await client.query("SELECT to_regclass('public.agendamentos')");
-    if (tableExists.rows[0].to_regclass === null) {
-      console.log("Tabela 'agendamentos' não encontrada. Criando tabela...");
-      await client.query(`
-        CREATE TABLE agendamentos (
-          id SERIAL PRIMARY KEY,
-          numero_nota VARCHAR(255) NOT NULL UNIQUE,
-          numero_instalacao VARCHAR(255) NOT NULL,
-          responsavel_pelo_agendamento VARCHAR(255) NOT NULL,
-          localidade VARCHAR(50) NOT NULL,
-          data_original DATE NOT NULL,
-          periodo_original VARCHAR(10) NOT NULL,
-          data_atual DATE NOT NULL,
-          periodo_atual VARCHAR(10) NOT NULL,
-          status VARCHAR(20) NOT NULL DEFAULT 'agendado',
-          quantidade_reagendamentos INT NOT NULL DEFAULT 0,
-          reagendado_em TIMESTAMP,
-          criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      console.log("Tabela 'agendamentos' criada com sucesso.");
-    } else {
-      console.log("Tabela 'agendamentos' já existe.");
+    const client = await pool.connect();
+    try {
+        const tableExists = await client.query("SELECT to_regclass('public.agendamentos')");
+        if (tableExists.rows[0].to_regclass === null) {
+            console.log("Tabela 'agendamentos' não encontrada. Criando tabela...");
+            await client.query(`
+                CREATE TABLE agendamentos (
+                    id SERIAL PRIMARY KEY,
+                    numero_nota VARCHAR(255) NOT NULL UNIQUE,
+                    numero_instalacao VARCHAR(255) NOT NULL,
+                    responsavel_pelo_agendamento VARCHAR(255) NOT NULL,
+                    localidade VARCHAR(50) NOT NULL,
+                    data_original DATE NOT NULL,
+                    periodo_original VARCHAR(10) NOT NULL,
+                    data_atual DATE NOT NULL,
+                    periodo_atual VARCHAR(10) NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'agendado',
+                    quantidade_reagendamentos INT NOT NULL DEFAULT 0,
+                    reagendado_em TIMESTAMP,
+                    criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+            console.log("Tabela 'agendamentos' criada com sucesso.");
+        } else {
+            console.log("Tabela 'agendamentos' já existe.");
+        }
+    } catch (err) {
+        console.error("Erro durante a inicialização do banco de dados:", err);
+        throw err;
+    } finally {
+        client.release();
     }
-  } catch (err) {
-    console.error("Erro durante a inicialização do banco de dados:", err);
-    throw err;
-  } finally {
-    client.release();
-  }
 }
 
 // --- Middlewares ---
@@ -71,7 +71,7 @@ function adicionarDiasUteis(dataInicial, dias) {
 
 // --- ROTAS DA API ---
 
-// [GET] Rota de disponibilidade
+// [GET] Rota de disponibilidade MELHORADA
 app.get('/api/disponibilidade/:localidade', async (req, res) => {
     const { localidade } = req.params;
     try {
@@ -82,11 +82,34 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
              GROUP BY data_atual, periodo_atual`,
             [localidade]
         );
-        
+
+        // Estruturas melhoradas para o frontend
+        const disponibilidade = {};
         const turnosIndisponiveis = {};
+        const diasLotados = [];
+        const diasParcialmenteOcupados = [];
+
         result.rows.forEach(row => {
-            // CORREÇÃO: Garante que a data seja formatada como YYYY-MM-DD
             const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
+
+            // Inicializar estrutura da data se não existir
+            if (!disponibilidade[dataFormatada]) {
+                disponibilidade[dataFormatada] = {
+                    manha: { ocupadas: 0, disponivel: true },
+                    tarde: { ocupadas: 0, disponivel: true }
+                };
+            }
+
+            // Atualizar contadores
+            if (row.periodo_atual === 'manha') {
+                disponibilidade[dataFormatada].manha.ocupadas = parseInt(row.count);
+                disponibilidade[dataFormatada].manha.disponivel = row.count < 2;
+            } else if (row.periodo_atual === 'tarde') {
+                disponibilidade[dataFormatada].tarde.ocupadas = parseInt(row.count);
+                disponibilidade[dataFormatada].tarde.disponivel = row.count < 2;
+            }
+
+            // Lógica de turnos indisponíveis (mantida para compatibilidade)
             if (row.count >= 2) {
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
@@ -95,17 +118,30 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
             }
         });
 
-        const diasLotados = Object.keys(turnosIndisponiveis).filter(
-            data => turnosIndisponiveis[data].length >= 2
-        );
+        // Calcular dias lotados e parcialmente ocupados
+        Object.keys(disponibilidade).forEach(data => {
+            const dia = disponibilidade[data];
+            const manhaDisponivel = dia.manha.disponivel;
+            const tardeDisponivel = dia.tarde.disponivel;
 
-        res.json({ turnosIndisponiveis, diasLotados });
+            if (!manhaDisponivel && !tardeDisponivel) {
+                diasLotados.push(data);
+            } else if (!manhaDisponivel || !tardeDisponivel || dia.manha.ocupadas > 0 || dia.tarde.ocupadas > 0) {
+                diasParcialmenteOcupados.push(data);
+            }
+        });
+
+        res.json({ 
+            disponibilidade,
+            turnosIndisponiveis, 
+            diasLotados,
+            diasParcialmenteOcupados
+        });
     } catch (error) {
         console.error('Erro ao buscar disponibilidade:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
     }
 });
-
 
 // [POST] Criar um novo agendamento
 app.post('/api/agendamentos', async (req, res) => {
@@ -128,7 +164,7 @@ app.post('/api/agendamentos', async (req, res) => {
     if (dataSelecionada > dataMaxima) {
         return res.status(400).json({ message: 'O agendamento não pode ser feito com mais de 30 dias de antecedência.' });
     }
-    
+
     const diaDaSemana = dataSelecionada.getUTCDay();
     if (diaDaSemana === 0 || diaDaSemana === 6) {
         return res.status(400).json({ message: 'Agendamentos são permitidos apenas em dias úteis.' });
@@ -141,16 +177,18 @@ app.post('/api/agendamentos', async (req, res) => {
 
     try {
         const client = await pool.connect();
+
         const notaExistente = await client.query('SELECT 1 FROM agendamentos WHERE numero_nota = $1', [numero_nota]);
         if (notaExistente.rowCount > 0) {
             client.release();
             return res.status(409).json({ message: 'Já existe um agendamento com este Número de Nota.' });
         }
-        
+
         const vagas = await client.query(
             'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, localidade]
         );
+
         if (vagas.rows[0].count >= 2) {
             client.release();
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
@@ -161,10 +199,9 @@ app.post('/api/agendamentos', async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
             [numero_nota, numero_instalacao, responsavel_pelo_agendamento, localidade, data, periodo, data, periodo]
         );
-        
+
         client.release();
         res.status(201).json({ message: 'Agendamento criado com sucesso!', agendamento: result.rows[0] });
-
     } catch (error) {
         console.error('Erro ao criar agendamento:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
@@ -176,30 +213,31 @@ app.get('/api/agendamentos/:nota', async (req, res) => {
     const { nota } = req.params;
     try {
         const result = await pool.query('SELECT * FROM agendamentos WHERE numero_nota = $1', [nota]);
+
         if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Nenhum agendamento encontrado para a nota informada.' });
         }
-        
+
         const agendamento = result.rows[0];
         const podeReagendar = agendamento.quantidade_reagendamentos === 0;
-        
         let motivoBloqueio = '';
+
         if (!podeReagendar) {
             motivoBloqueio = 'O limite de 1 reagendamento por nota já foi atingido.';
         }
-        
+
         const dataAgendamento = new Date(agendamento.data_atual);
         const dataMinimaParaReagendar = adicionarDiasUteis(new Date(), 2);
+
         if (podeReagendar && agendamento.status !== 'concluido' && dataAgendamento < dataMinimaParaReagendar) {
-             motivoBloqueio = 'O prazo para reagendamento (3 dias úteis de antecedência) expirou.';
+            motivoBloqueio = 'O prazo para reagendamento (3 dias úteis de antecedência) expirou.';
         }
 
-        res.json({ 
-            agendamento, 
+        res.json({
+            agendamento,
             podeReagendar: podeReagendar && !motivoBloqueio,
-            motivoBloqueio 
+            motivoBloqueio
         });
-
     } catch (error) {
         console.error('Erro ao consultar agendamento:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
@@ -214,11 +252,12 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
     if (!data || !periodo) {
         return res.status(400).json({ message: 'Nova data e período são obrigatórios.' });
     }
-    
+
     const dataSelecionada = new Date(data + "T00:00:00Z");
     if (dataSelecionada.getUTCDay() === 0 || dataSelecionada.getUTCDay() === 6) {
         return res.status(400).json({ message: 'Reagendamentos são permitidos apenas em dias úteis.' });
     }
+
     const dataMinima = adicionarDiasUteis(new Date(), 2);
     if (dataSelecionada < dataMinima) {
         return res.status(400).json({ message: 'O reagendamento deve ter no mínimo 3 dias úteis de antecedência.' });
@@ -226,12 +265,16 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
 
     try {
         const client = await pool.connect();
+
         const agendamentoOriginal = await client.query('SELECT * FROM agendamentos WHERE numero_nota = $1', [nota]);
+
         if (agendamentoOriginal.rowCount === 0) {
             client.release();
             return res.status(404).json({ message: 'Agendamento não encontrado.' });
         }
+
         const ag = agendamentoOriginal.rows[0];
+
         if (ag.quantidade_reagendamentos > 0) {
             client.release();
             return res.status(403).json({ message: 'Este agendamento não pode mais ser reagendado.' });
@@ -241,13 +284,14 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
             'SELECT COUNT(*) FROM agendamentos WHERE data_atual = $1 AND periodo_atual = $2 AND localidade = $3',
             [data, periodo, ag.localidade]
         );
+
         if (vagas.rows[0].count >= 2) {
             client.release();
             return res.status(409).json({ message: 'Período indisponível. O limite de vagas foi atingido.' });
         }
 
         const result = await client.query(
-            `UPDATE agendamentos 
+            `UPDATE agendamentos
              SET data_atual = $1, periodo_atual = $2, status = 'reagendado', quantidade_reagendamentos = 1, reagendado_em = NOW()
              WHERE numero_nota = $3 RETURNING *`,
             [data, periodo, nota]
@@ -255,13 +299,11 @@ app.post('/api/agendamentos/:nota/reagendar', async (req, res) => {
 
         client.release();
         res.json({ message: 'Reagendamento concluído com sucesso!', agendamento: result.rows[0] });
-
     } catch (error) {
         console.error('Erro ao reagendar:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
     }
 });
-
 
 // --- ROTAS DO BACKOFFICE (Protegidas) ---
 const BACKOFFICE_PASSWORD = process.env.BACKOFFICE_PASSWORD || 'celesc123';
@@ -300,10 +342,12 @@ app.get('/api/backoffice/agendamentos', authenticateToken, async (req, res) => {
         conditions.push(`localidade = $${paramIndex++}`);
         params.push(localidade);
     }
+
     if (status) {
         conditions.push(`status = $${paramIndex++}`);
         params.push(status);
     }
+
     if (data) {
         conditions.push(`data_atual = $${paramIndex++}`);
         params.push(data);
@@ -312,6 +356,7 @@ app.get('/api/backoffice/agendamentos', authenticateToken, async (req, res) => {
     if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
     }
+
     query += ' ORDER BY data_atual DESC, id DESC';
 
     try {
@@ -330,9 +375,11 @@ app.post('/api/backoffice/agendamentos/:nota/concluir', authenticateToken, async
             "UPDATE agendamentos SET status = 'concluido' WHERE numero_nota = $1 RETURNING *",
             [nota]
         );
+
         if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Agendamento não encontrado.' });
         }
+
         res.json({ message: 'Agendamento marcado como concluído.', agendamento: result.rows[0] });
     } catch (error) {
         console.error('Erro ao concluir agendamento:', error);
@@ -345,9 +392,11 @@ app.delete('/api/backoffice/agendamentos/:nota', authenticateToken, async (req, 
     const { nota } = req.params;
     try {
         const result = await pool.query('DELETE FROM agendamentos WHERE numero_nota = $1', [nota]);
+
         if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Agendamento não encontrado para exclusão.' });
         }
+
         res.json({ message: `Agendamento da nota ${nota} foi excluído com sucesso.` });
     } catch (error) {
         console.error('Erro ao excluir agendamento:', error);
@@ -358,9 +407,11 @@ app.delete('/api/backoffice/agendamentos/:nota', authenticateToken, async (req, 
 // [POST] Excluir múltiplos agendamentos
 app.post('/api/backoffice/agendamentos/excluir-massa', authenticateToken, async (req, res) => {
     const { notas } = req.body;
+
     if (!notas || !Array.isArray(notas) || notas.length === 0) {
         return res.status(400).json({ message: 'Nenhuma nota fornecida para exclusão.' });
     }
+
     try {
         const result = await pool.query('DELETE FROM agendamentos WHERE numero_nota = ANY($1::text[])', [notas]);
         res.json({ message: `${result.rowCount} agendamentos foram excluídos com sucesso.` });
@@ -370,14 +421,13 @@ app.post('/api/backoffice/agendamentos/excluir-massa', authenticateToken, async 
     }
 });
 
-
 // --- Iniciar o Servidor ---
 app.listen(PORT, async () => {
-  try {
-    await inicializarDB();
-    console.log(`Servidor rodando na porta ${PORT}`);
-  } catch (err) {
-    console.error("Falha ao iniciar o servidor.", err);
-    process.exit(1);
-  }
+    try {
+        await inicializarDB();
+        console.log(`Servidor rodando na porta ${PORT}`);
+    } catch (err) {
+        console.error("Falha ao iniciar o servidor.", err);
+        process.exit(1);
+    }
 });
