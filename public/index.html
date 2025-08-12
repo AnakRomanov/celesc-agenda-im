@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Agendamento de Inspeção - CELESC</title>
-<!-- Adicionado o CSS do novo calendário -->
-<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
-<!-- Adicionada a fonte Poppins do Google Fonts -->
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<!-- INÍCIO DO CSS -->
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento de Inspeção - CELESC</title>
+    
+    <!-- Adicionado o CSS do novo calendário -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Adicionada a fonte Poppins do Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- INÍCIO DO CSS -->
+    <style>
         :root {
             --cor-azul-celesc: #005691;
             --cor-amarelo-celesc: #fdb913;
@@ -389,170 +390,175 @@
             .form-grid { grid-template-columns: 1fr; }
         }
     </style>
-<!-- FIM DO CSS -->
+    <!-- FIM DO CSS -->
 </head>
 <body>
-<div class="container">
-<header>
-<img alt="Logo Celesc" src="https://www.celesc.com.br/images/logo-celesc-horizontal-peq.png"/>
-<div>
-<h1>Agendamento de Inspeção da Medição</h1>
-<p>Sistema para agendamento e consulta de inspeções</p>
-</div>
-</header>
-<!-- ÁREA PÚBLICA -->
-<div id="area-publica">
-<div class="nav-tabs">
-<button class="nav-tab active" data-tab="agendar">Novo Agendamento</button>
-<button class="nav-tab" data-tab="consultar">Consultar / Reagendar</button>
-<button class="nav-tab" data-tab="backoffice-login">Acesso Restrito</button>
-</div>
-<!-- Aba de Agendamento -->
-<div class="tab-content active" id="tab-agendar">
-<h2>Preencha os dados para agendar</h2>
-<form id="form-agendamento">
-<div class="form-grid">
-<div class="form-group">
-<label for="numero_nota">Número da Nota</label>
-<input id="numero_nota" placeholder="Ex: 70912345678" required="" type="text"/>
-</div>
-<div class="form-group">
-<label for="numero_instalacao">Número da Instalação</label>
-<input id="numero_instalacao" required="" type="text"/>
-</div>
-<div class="form-group full-width">
-<label for="responsavel">Responsável pelo Agendamento</label>
-<input id="responsavel" placeholder="Nome do atendente" required="" type="text"/>
-</div>
-<div class="form-group">
-<label for="localidade">Selecione a Região</label>
-<select id="localidade" required="">
-<option value="">-- Escolha uma opção --</option>
-<option value="Criciuma">Criciúma e região</option>
-<option value="Ararangua">Araranguá e região</option>
-</select>
-</div>
-<div class="form-group">
-<label for="data">Selecione a Data</label>
-<input id="data" placeholder="Primeiro, selecione a região..." required="" type="text"/>
-</div>
-</div>
-<div class="calendario-legenda">
-<div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-disponivel);"></span> Disponível</div>
-<div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-parcial);"></span> Parcial</div>
-<div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-lotado);"></span> Lotado</div>
-</div>
-<div class="form-group">
-<label>Selecione o Turno</label>
-<div class="periodo-options">
-<label for="periodo_manha"><input id="periodo_manha" name="periodo" required="" type="radio" value="manha"/> Manhã</label>
-<label for="periodo_tarde"><input id="periodo_tarde" name="periodo" required="" type="radio" value="tarde"/> Tarde</label>
-</div>
-</div>
-<div class="form-group checkbox-group">
-<input id="confirmacao" required="" type="checkbox"/>
-<label for="confirmacao" id="confirmacao-msg">Confirmo que atualizei o e-mail do solicitante no SAP CRM e informei que a confirmação do agendamento ocorrerá por esse contato.</label>
-</div>
-<button class="btn" type="submit">Agendar</button>
 
-<div id="legenda-calendario" style="margin-top: 10px;">
-<strong>Legenda:</strong>
-<span style="background-color: #28a745; color: white; padding: 2px 6px; margin-right: 5px;">Disponível</span>
-<span style="background-color: #ffc107; color: black; padding: 2px 6px; margin-right: 5px;">Parcial</span>
-<span style="background-color: #dc3545; color: white; padding: 2px 6px;">Lotado</span>
-</div>
-</form>
-</div>
-<!-- Aba de Consulta / Reagendamento -->
-<div class="tab-content" id="tab-consultar">
-<h2>Consulte ou reagende sua inspeção</h2>
-<form id="form-consulta">
-<div class="form-group">
-<label for="consulta_numero_nota">Informe o Número da Nota</label>
-<input id="consulta_numero_nota" placeholder="Ex: 70912345678" required="" type="text"/>
-</div>
-<button class="btn" type="submit">Buscar Agendamento</button>
-</form>
-<div class="consulta-resultado" id="consulta-resultado" style="display: none;"></div>
-</div>
-<!-- Aba de Login Backoffice -->
-<div class="tab-content" id="tab-backoffice-login">
-<h2>Acesso Restrito - CELESC</h2>
-<form id="form-login">
-<div class="form-group">
-<label for="senha">Senha de Acesso</label>
-<input id="senha" required="" type="password"/>
-</div>
-<button class="btn" type="submit">Entrar</button>
-</form>
-</div>
-</div>
-<!-- ÁREA RESTRITA (BACKOFFICE) -->
-<div id="area-backoffice" style="display: none;">
-<div style="display: flex; justify-content: space-between; align-items: center;">
-<h2>Painel de Controle de Agendamentos</h2>
-<button class="btn-secondary" onclick="logout()" style="width: auto; padding: 8px 15px;">Sair</button>
-</div>
-<div class="backoffice-filters">
-<div class="form-group">
-<label for="filtro-localidade">Localidade</label>
-<select id="filtro-localidade">
-<option value="">Todas</option>
-<option value="Criciuma">Criciúma</option>
-<option value="Ararangua">Araranguá</option>
-</select>
-</div>
-<div class="form-group">
-<label for="filtro-status">Status</label>
-<select id="filtro-status">
-<option value="">Todos</option>
-<option value="agendado">Agendado</option>
-<option value="reagendado">Reagendado</option>
-<option value="concluido">Concluído</option>
-</select>
-</div>
-<div class="form-group">
-<label for="filtro-data">Data</label>
-<input id="filtro-data" type="date"/>
-</div>
-</div>
-<div class="backoffice-actions">
-<button class="btn-secondary" id="btn-exportar" style="width: auto; padding: 8px 15px;">Exportar para CSV/Excel</button>
-<button class="btn-danger" id="btn-excluir-selecionados" style="width: auto; padding: 8px 15px; display: none;">Excluir Selecionados</button>
-</div>
-<div class="table-wrapper">
-<table class="backoffice-table">
-<thead>
-<tr>
-<th><input id="selecionar-todos" type="checkbox"/></th>
-<th>Nº Nota</th>
-<th>Nº Instalação</th>
-<th>Responsável</th>
-<th>Localidade</th>
-<th>Data Atual</th>
-<th>Período</th>
-<th>Status</th>
-<th>Ações</th>
-</tr>
-</thead>
-<tbody id="tabela-agendamentos"></tbody>
-</table>
-</div>
-</div>
-</div>
-<!-- Modal de Notificação -->
-<div class="modal" id="modal">
-<div class="modal-content" id="modal-content">
-<h3 id="modal-titulo"></h3>
-<p id="modal-mensagem"></p>
-<button class="btn" id="modal-btn-fechar">Fechar</button>
-</div>
-</div>
-<!-- Adicionado o JS do novo calendário -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
-<!-- INÍCIO DO JAVASCRIPT -->
-<script>
+    <div class="container">
+        <header>
+            <img src="https://www.celesc.com.br/images/logo-celesc-horizontal-peq.png" alt="Logo Celesc">
+            <div>
+                <h1>Agendamento de Inspeção da Medição</h1>
+                <p>Sistema para agendamento e consulta de inspeções</p>
+            </div>
+        </header>
+
+        <!-- ÁREA PÚBLICA -->
+        <div id="area-publica">
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="agendar">Novo Agendamento</button>
+                <button class="nav-tab" data-tab="consultar">Consultar / Reagendar</button>
+                <button class="nav-tab" data-tab="backoffice-login">Acesso Restrito</button>
+            </div>
+
+            <!-- Aba de Agendamento -->
+            <div id="tab-agendar" class="tab-content active">
+                <h2>Preencha os dados para agendar</h2>
+                <form id="form-agendamento">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="numero_nota">Número da Nota</label>
+                            <input type="text" id="numero_nota" required placeholder="Ex: 70912345678">
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_instalacao">Número da Instalação</label>
+                            <input type="text" id="numero_instalacao" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="responsavel">Responsável pelo Agendamento</label>
+                            <input type="text" id="responsavel" required placeholder="Nome do atendente">
+                        </div>
+                        <div class="form-group">
+                            <label for="localidade">Selecione a Região</label>
+                            <select id="localidade" required>
+                                <option value="">-- Escolha uma opção --</option>
+                                <option value="Criciuma">Criciúma e região</option>
+                                <option value="Ararangua">Araranguá e região</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="data">Selecione a Data</label>
+                            <input type="text" id="data" required placeholder="Primeiro, selecione a região...">
+                        </div>
+                    </div>
+                    <div class="calendario-legenda">
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-disponivel);"></span> Disponível</div>
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-parcial);"></span> Parcial</div>
+                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-lotado);"></span> Lotado</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Selecione o Turno</label>
+                        <div class="periodo-options">
+                            <label for="periodo_manha"><input type="radio" id="periodo_manha" name="periodo" value="manha" required> Manhã</label>
+                            <label for="periodo_tarde"><input type="radio" id="periodo_tarde" name="periodo" value="tarde" required> Tarde</label>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="confirmacao" required>
+                        <label for="confirmacao" id="confirmacao-msg">Confirmo que atualizei o e-mail do solicitante no SAP CRM e informei que a confirmação do agendamento ocorrerá por esse contato.</label>
+                    </div>
+                    <button type="submit" class="btn">Agendar</button>
+                </form>
+            </div>
+
+            <!-- Aba de Consulta / Reagendamento -->
+            <div id="tab-consultar" class="tab-content">
+                <h2>Consulte ou reagende sua inspeção</h2>
+                <form id="form-consulta">
+                    <div class="form-group">
+                        <label for="consulta_numero_nota">Informe o Número da Nota</label>
+                        <input type="text" id="consulta_numero_nota" required placeholder="Ex: 70912345678">
+                    </div>
+                    <button type="submit" class="btn">Buscar Agendamento</button>
+                </form>
+                <div id="consulta-resultado" class="consulta-resultado" style="display: none;"></div>
+            </div>
+            
+            <!-- Aba de Login Backoffice -->
+            <div id="tab-backoffice-login" class="tab-content">
+                 <h2>Acesso Restrito - CELESC</h2>
+                 <form id="form-login">
+                    <div class="form-group">
+                        <label for="senha">Senha de Acesso</label>
+                        <input type="password" id="senha" required>
+                    </div>
+                    <button type="submit" class="btn">Entrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ÁREA RESTRITA (BACKOFFICE) -->
+        <div id="area-backoffice" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Painel de Controle de Agendamentos</h2>
+                <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 8px 15px;">Sair</button>
+            </div>
+            
+            <div class="backoffice-filters">
+                <div class="form-group">
+                    <label for="filtro-localidade">Localidade</label>
+                    <select id="filtro-localidade">
+                        <option value="">Todas</option>
+                        <option value="Criciuma">Criciúma</option>
+                        <option value="Ararangua">Araranguá</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filtro-status">Status</label>
+                    <select id="filtro-status">
+                        <option value="">Todos</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="reagendado">Reagendado</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                </div>
+                 <div class="form-group">
+                    <label for="filtro-data">Data</label>
+                    <input type="date" id="filtro-data">
+                </div>
+            </div>
+
+            <div class="backoffice-actions">
+                <button id="btn-exportar" class="btn-secondary" style="width: auto; padding: 8px 15px;">Exportar para CSV/Excel</button>
+                <button id="btn-excluir-selecionados" class="btn-danger" style="width: auto; padding: 8px 15px; display: none;">Excluir Selecionados</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="backoffice-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selecionar-todos"></th>
+                            <th>Nº Nota</th>
+                            <th>Nº Instalação</th>
+                            <th>Responsável</th>
+                            <th>Localidade</th>
+                            <th>Data Atual</th>
+                            <th>Período</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-agendamentos"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Notificação -->
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modal-content">
+            <h3 id="modal-titulo"></h3>
+            <p id="modal-mensagem"></p>
+            <button id="modal-btn-fechar" class="btn">Fechar</button>
+        </div>
+    </div>
+
+    <!-- Adicionado o JS do novo calendário -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+
+    <!-- INÍCIO DO JAVASCRIPT -->
+    <script>
         const API_URL = 'https://celesc-agenda-im.onrender.com';
         let turnosIndisponiveis = {};
         let diasLotados = [];
@@ -1013,6 +1019,6 @@
             calendario.set('disable', [() => true]);
         };
     </script>
-<!-- FIM DO JAVASCRIPT -->
+    <!-- FIM DO JAVASCRIPT -->
 </body>
 </html>
