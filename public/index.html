@@ -24,9 +24,6 @@
             --cor-sucesso: #16a34a;
             --cor-erro: #dc2626;
             --cor-branco: #ffffff;
-            --cor-disponivel: #dcfce7;
-            --cor-parcial: #fef9c3;
-            --cor-lotado: #fee2e2;
         }
 
         body {
@@ -177,6 +174,14 @@
             color: #999;
             cursor: not-allowed;
             text-decoration: line-through;
+        }
+        .info-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8em;
+            color: var(--cor-texto-claro);
+            margin-top: 5px;
         }
 
         .checkbox-group {
@@ -340,44 +345,11 @@
         .modal-erro h3 { color: var(--cor-erro); }
 
         /* Estilos para o Calendário */
-        .flatpickr-day.disponivel {
-            background: var(--cor-disponivel);
-            border-color: var(--cor-disponivel);
-        }
-        .flatpickr-day.parcial {
-            background: var(--cor-parcial);
-            border-color: var(--cor-parcial);
-        }
-        .flatpickr-day.lotado {
-            background: var(--cor-lotado);
-            border-color: var(--cor-lotado);
-            color: #9ca3af;
-        }
         .flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover {
             background: #f1f5f9 !important;
             border-color: #f1f5f9 !important;
             color: #9ca3af !important;
             cursor: not-allowed !important;
-        }
-
-
-        .calendario-legenda {
-            display: flex;
-            gap: 15px;
-            justify-content: flex-end; /* Alinha à direita */
-            font-size: 0.8em;
-            margin-top: -10px;
-            margin-bottom: 20px;
-        }
-        .legenda-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .legenda-cor {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
         }
 
         @media (max-width: 600px) {
@@ -441,17 +413,19 @@
                             <input type="text" id="data" required placeholder="Primeiro, selecione a região...">
                         </div>
                     </div>
-                    <div class="calendario-legenda">
-                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-disponivel);"></span> Disponível</div>
-                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-parcial);"></span> Parcial</div>
-                        <div class="legenda-item"><span class="legenda-cor" style="background: var(--cor-lotado);"></span> Lotado</div>
-                    </div>
                     <div class="form-group">
                         <label>Selecione o Turno</label>
                         <div class="periodo-options">
                             <label for="periodo_manha"><input type="radio" id="periodo_manha" name="periodo" value="manha" required> Manhã</label>
                             <label for="periodo_tarde"><input type="radio" id="periodo_tarde" name="periodo" value="tarde" required> Tarde</label>
                         </div>
+                        <p class="info-text">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                            </svg>
+                            O serviço será realizado dentro do horário comercial.
+                        </p>
                     </div>
                     <div class="form-group checkbox-group">
                         <input type="checkbox" id="confirmacao" required>
@@ -562,7 +536,6 @@
         const API_URL = 'https://celesc-agenda-im.onrender.com';
         let turnosIndisponiveis = {};
         let diasLotados = [];
-        let diasParciais = [];
         let calendario;
 
         function formatarData(dataString) {
@@ -662,7 +635,6 @@
                 const data = await response.json();
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
-                diasParciais = data.diasParciais || [];
                 
                 const newDisableRules = calendario.config.disable.slice(0, 1).concat(diasLotados);
                 calendario.set('disable', newDisableRules);
@@ -673,7 +645,6 @@
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
-                diasParciais = [];
                 inputData.placeholder = "Erro ao carregar datas.";
             }
         }
@@ -1002,16 +973,6 @@
 
         window.onload = () => {
             calendario = inicializarCalendario("#data", {
-                onDayCreate: function(dObj, dStr, fp, dayElem){
-                    const data = flatpickr.formatDate(dayElem.dateObj, "Y-m-d");
-                    if (diasLotados.includes(data)) {
-                        dayElem.classList.add("lotado");
-                    } else if (diasParciais.includes(data)) {
-                        dayElem.classList.add("parcial");
-                    } else {
-                        dayElem.classList.add("disponivel");
-                    }
-                },
                 onChange: function(selectedDates, dateStr, instance) {
                     verificarDisponibilidadeTurnos();
                 }
