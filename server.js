@@ -83,7 +83,6 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
         );
         
         const turnosIndisponiveis = {};
-        const diasParciais = [];
         
         result.rows.forEach(row => {
             const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
@@ -93,18 +92,13 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
                 }
                 turnosIndisponiveis[dataFormatada].push(row.periodo_atual);
             }
-            if (row.count === 1) {
-                if (!diasParciais.includes(dataFormatada)) {
-                    diasParciais.push(dataFormatada);
-                }
-            }
         });
 
         const diasLotados = Object.keys(turnosIndisponiveis).filter(
             data => turnosIndisponiveis[data].length >= 2
         );
 
-        res.json({ turnosIndisponiveis, diasLotados, diasParciais });
+        res.json({ turnosIndisponiveis, diasLotados });
     } catch (error) {
         console.error('Erro ao buscar disponibilidade:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
