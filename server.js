@@ -86,7 +86,7 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
         
         result.rows.forEach(row => {
             const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
-            if (row.count >= 1) {
+            if (row.count >= 2) {
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
                 }
