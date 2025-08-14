@@ -518,7 +518,6 @@
         </div>
     </div>
 
-    <!-- Modal de Notificação -->
     <div id="modal" class="modal">
         <div class="modal-content" id="modal-content">
             <h3 id="modal-titulo"></h3>
@@ -595,25 +594,12 @@
             const dataMaxima = new Date();
             dataMaxima.setDate(new Date().getDate() + 30);
 
-            const feriados2025 = [
-                "2025-01-01", "2025-03-03", "2025-03-04", "2025-04-18", "2025-04-21",
-                "2025-05-01", "2025-06-19", "2025-09-07", "2025-10-12", "2025-11-02",
-                "2025-11-15", "2025-12-25"
-            ];
-
             const config = {
                 locale: "pt",
-                altInput: true,
-                altFormat: "d/m/Y",
-                dateFormat: "Y-m-d",
+                dateFormat: "d/m/Y",
                 minDate: dataMinima,
                 maxDate: dataMaxima,
-                disable: [
-                    function(date) {
-                        const dataStr = flatpickr.formatDate(date, "Y-m-d");
-                        return (date.getDay() === 0 || date.getDay() === 6 || feriados2025.includes(dataStr));
-                    }
-                ],
+                disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
                 ...extraConfig
             };
             return flatpickr(elementId, config);
@@ -622,13 +608,8 @@
         async function buscarDisponibilidade() {
             const localidade = selectLocalidade.value;
             if (calendario) calendario.clear();
-            if (!localidade) {
-                calendario.set('disable', [() => true]);
-                inputData.placeholder = "Primeiro, selecione a região...";
-                return;
-            }
+            if (!localidade) return;
 
-            inputData.placeholder = "Carregando datas...";
             try {
                 const response = await fetch(`${API_URL}/api/disponibilidade/${localidade}`);
                 if (!response.ok) throw new Error('Falha ao buscar disponibilidade.');
@@ -636,16 +617,21 @@
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
                 
-                const newDisableRules = calendario.config.disable.slice(0, 1).concat(diasLotados);
-                calendario.set('disable', newDisableRules);
-                calendario.redraw();
+                if (calendario) calendario.destroy();
                 
-                inputData.placeholder = "Selecione uma data...";
+                calendario = inicializarCalendario("#data", {
+                    disable: [
+                        function(date) { return (date.getDay() === 0 || date.getDay() === 6); },
+                        ...diasLotados
+                    ],
+                    onChange: function(selectedDates, dateStr, instance) {
+                        verificarDisponibilidadeTurnos();
+                    }
+                });
             } catch (error) {
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
-                inputData.placeholder = "Erro ao carregar datas.";
             }
         }
 
@@ -674,13 +660,13 @@
                 numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
                 responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
                 localidade: formAgendamento.localidade.value,
-                data: calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null,
+                data: calendario.selectedDates[0].toISOString().split('T')[0],
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
-            const notaPattern = /^(0?709)\d{8}$/;
+            const notaPattern = /^(0?709)\d+$/;
             if (!notaPattern.test(agendamentoData.numero_nota)) {
-                return showModal('erro', 'Número de Nota Inválido', 'A nota deve começar com 709 e conter 11 dígitos. Por favor, confirme o número informado.');
+                return showModal('erro', 'Número de Nota Inválido', 'Número de nota incorreto, informe a nota com início 709.');
             }
 
             try {
@@ -760,9 +746,6 @@
 
         async function executarReagendamento(numeroNota) {
             const novaDataInput = document.getElementById('nova_data')._flatpickr;
-            if (!novaDataInput.selectedDates[0]) {
-                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data.');
-            }
             const reagendamentoData = {
                 data: novaDataInput.selectedDates[0].toISOString().split('T')[0],
                 periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
@@ -840,35 +823,27 @@
                 }
                 const agendamentos = await response.json();
                 if (agendamentos.length === 0) {
-                    return tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
+                    return tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
                 }
                 agendamentos.forEach(ag => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td><input type="checkbox" class="checkbox-item" data-nota="${ag.numero_nota}"></td>
                         <td>${ag.numero_nota}</td>
-                        <td>${ag.numero_instalacao}</td>
                         <td>${ag.responsavel_pelo_agendamento}</td>
                         <td>${ag.localidade}</td>
                         <td>${formatarData(ag.data_atual)}</td>
                         <td>${ag.periodo_atual}</td>
                         <td><span class="status-${ag.status}">${ag.status.toUpperCase()}</span></td>
                         <td>
-                            <div class="table-actions">
-                                ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : ''}
-                                <span class="action-icon" onclick="excluirAgendamento('${ag.numero_nota}')" title="Excluir">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                                    </svg>
-                                </span>
-                            </div>
+                            ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : ''}
+                            <span class="action-icon" onclick="excluirAgendamento('${ag.numero_nota}')" title="Excluir">&#128465;</span>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
             }
         }
 
@@ -947,7 +922,7 @@
         });
 
         document.getElementById('btn-exportar').addEventListener('click', () => {
-            const headers = ['NumeroNota', 'NumeroInstalacao', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
+            const headers = ['NumeroNota', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
             const rows = Array.from(document.querySelectorAll('#tabela-agendamentos tr'));
             
             let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
@@ -957,7 +932,7 @@
                 if(cols.length === 0) return;
                 const rowData = [
                     cols[1].innerText, cols[2].innerText, cols[3].innerText,
-                    cols[4].innerText, cols[5].innerText, cols[6].innerText, cols[7].innerText
+                    cols[4].innerText, cols[5].innerText, cols[6].innerText,
                 ];
                 csvContent += rowData.join(',') + '\n';
             });
@@ -972,12 +947,7 @@
         });
 
         window.onload = () => {
-            calendario = inicializarCalendario("#data", {
-                onChange: function(selectedDates, dateStr, instance) {
-                    verificarDisponibilidadeTurnos();
-                }
-            });
-            calendario.set('disable', [() => true]);
+            calendario = inicializarCalendario("#data");
         };
     </script>
     <!-- FIM DO JAVASCRIPT -->
