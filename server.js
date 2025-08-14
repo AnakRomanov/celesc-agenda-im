@@ -77,7 +77,7 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
         const result = await pool.query(
             `SELECT data_atual, periodo_atual, COUNT(*) as count
              FROM agendamentos
-             WHERE localidade = $1 AND status != 'concluido'
+             WHERE localidade = $1
              GROUP BY data_atual, periodo_atual`,
             [localidade]
         );
