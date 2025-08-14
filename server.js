@@ -83,19 +83,30 @@ app.get('/api/disponibilidade/:localidade', async (req, res) => {
         );
         
         const turnosIndisponiveis = {};
-        
+        const agendamentosPorDia = {}; // Objeto auxiliar para somar os agendamentos diários
+
         result.rows.forEach(row => {
             const dataFormatada = new Date(row.data_atual).toISOString().split('T')[0];
-            if (row.count >= 2) {
+            const contagem = parseInt(row.count, 10);
+
+            // 1. Lógica para desabilitar turnos individuais (quando um turno tem 2 vagas)
+            if (contagem >= 2) {
                 if (!turnosIndisponiveis[dataFormatada]) {
                     turnosIndisponiveis[dataFormatada] = [];
                 }
                 turnosIndisponiveis[dataFormatada].push(row.periodo_atual);
             }
+
+            // 2. Lógica para somar o total de agendamentos do dia
+            if (!agendamentosPorDia[dataFormatada]) {
+                agendamentosPorDia[dataFormatada] = 0;
+            }
+            agendamentosPorDia[dataFormatada] += contagem;
         });
 
-        const diasLotados = Object.keys(turnosIndisponiveis).filter(
-            data => turnosIndisponiveis[data].length >= 2
+        // 3. Determina os dias lotados se o total de agendamentos for >= 4
+        const diasLotados = Object.keys(agendamentosPorDia).filter(
+            data => agendamentosPorDia[data] >= 4
         );
 
         res.json({ turnosIndisponiveis, diasLotados });
