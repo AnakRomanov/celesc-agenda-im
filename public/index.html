@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendamento de Inspeção - CELESC</title>
     
-    <!-- Adicionado o CSS do novo calendário -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- Adicionada a fonte Poppins do Google Fonts -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- INÍCIO DO CSS -->
     <style>
         :root {
             --cor-azul-celesc: #005691;
@@ -140,8 +138,7 @@
         input[type="text"],
         input[type="date"],
         input[type="password"],
-        select,
-        .flatpickr-input {
+        select {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid var(--cor-borda);
@@ -316,6 +313,12 @@
         }
         .action-icon:hover { color: var(--cor-erro); }
 
+        .action-icon svg {
+            width: 18px;
+            height: 18px;
+            vertical-align: middle;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -344,12 +347,16 @@
         .modal-sucesso h3 { color: var(--cor-sucesso); }
         .modal-erro h3 { color: var(--cor-erro); }
 
-        /* Estilos para o Calendário */
-        .flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover {
-            background: #f1f5f9 !important;
-            border-color: #f1f5f9 !important;
-            color: #9ca3af !important;
-            cursor: not-allowed !important;
+        /* Estilos para o Calendário (Pikaday) */
+        .pika-button:hover {
+            background-color: var(--cor-amarelo-celesc) !important;
+        }
+        .pika-day.is-selected {
+            background-color: var(--cor-azul-celesc) !important;
+        }
+        .pika-day.is-disabled {
+            color: #999 !important;
+            opacity: 0.5;
         }
 
         @media (max-width: 600px) {
@@ -361,14 +368,8 @@
             .backoffice-actions { flex-direction: column; align-items: stretch; }
             .form-grid { grid-template-columns: 1fr; }
         }
-        .action-icon svg {
-            width: 18px;
-            height: 18px;
-            vertical-align: middle;
-        }
     </style>
-    <!-- FIM DO CSS -->
-</head>
+    </head>
 <body>
 
     <div class="container">
@@ -380,7 +381,6 @@
             </div>
         </header>
 
-        <!-- ÁREA PÚBLICA -->
         <div id="area-publica">
             <div class="nav-tabs">
                 <button class="nav-tab active" data-tab="agendar">Novo Agendamento</button>
@@ -388,7 +388,6 @@
                 <button class="nav-tab" data-tab="backoffice-login">Acesso Restrito</button>
             </div>
 
-            <!-- Aba de Agendamento -->
             <div id="tab-agendar" class="tab-content active">
                 <h2>Preencha os dados para agendar</h2>
                 <form id="form-agendamento">
@@ -415,7 +414,7 @@
                         </div>
                         <div class="form-group">
                             <label for="data">Selecione a Data</label>
-                            <input type="text" id="data" required placeholder="Primeiro, selecione a região...">
+                            <input type="text" id="data" required placeholder="Primeiro, selecione a região..." autocomplete="off">
                         </div>
                     </div>
                     <div class="form-group">
@@ -440,7 +439,6 @@
                 </form>
             </div>
 
-            <!-- Aba de Consulta / Reagendamento -->
             <div id="tab-consultar" class="tab-content">
                 <h2>Consulte ou reagende sua inspeção</h2>
                 <form id="form-consulta">
@@ -453,7 +451,6 @@
                 <div id="consulta-resultado" class="consulta-resultado" style="display: none;"></div>
             </div>
             
-            <!-- Aba de Login Backoffice -->
             <div id="tab-backoffice-login" class="tab-content">
                  <h2>Acesso Restrito - CELESC</h2>
                  <form id="form-login">
@@ -466,7 +463,6 @@
             </div>
         </div>
 
-        <!-- ÁREA RESTRITA (BACKOFFICE) -->
         <div id="area-backoffice" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>Painel de Controle de Agendamentos</h2>
@@ -531,27 +527,24 @@
         </div>
     </div>
 
-    <!-- Adicionado o JS do novo calendário -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pikaday/pikaday.js"></script>
 
-    <!-- INÍCIO DO JAVASCRIPT -->
     <script>
         const API_URL = 'https://celesc-agenda-im.onrender.com';
         let turnosIndisponiveis = {};
         let diasLotados = [];
+        let feriados = [];
         let calendario;
+        let reagendamentoCalendario;
 
         function formatarData(dataString) {
-            const data = new Date(dataString);
-            const ano = data.getUTCFullYear();
-            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
-            const dia = String(data.getUTCDate()).padStart(2, '0');
-            return `${ano}/${mes}/${dia}`;
+            // Usa o Moment.js para formatar a data de forma confiável
+            return moment(dataString).format('DD/MM/YYYY');
         }
         
         function hojeFormatado() {
-            return new Date().toISOString().split('T')[0];
+            return moment().format('YYYY-MM-DD');
         }
 
         const areaPublica = document.getElementById('area-publica');
@@ -586,8 +579,8 @@
 
         const formAgendamento = document.getElementById('form-agendamento');
         const selectLocalidade = document.getElementById('localidade');
-        const inputData = document.getElementById('data');
 
+        // Função reescrita para o Pikaday
         function inicializarCalendario(elementId, extraConfig = {}) {
             const hoje = new Date();
             let diasUteisAdicionados = 0;
@@ -600,19 +593,25 @@
             dataMaxima.setDate(new Date().getDate() + 30);
 
             const config = {
-                locale: "pt",
-                dateFormat: "Y/m/d",
+                field: document.getElementById(elementId),
+                format: 'DD/MM/YYYY', // Formato de exibição europeu/brasileiro
                 minDate: dataMinima,
                 maxDate: dataMaxima,
-                disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
+                i18n: { // Configuração para o português
+                    previousMonth : 'Mês Anterior',
+                    nextMonth     : 'Próximo Mês',
+                    months        : ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+                    weekdays      : ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'],
+                    weekdaysShort : ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+                },
                 ...extraConfig
             };
-            return flatpickr(elementId, config);
+            return new Pikaday(config);
         }
 
         async function buscarDisponibilidade() {
             const localidade = selectLocalidade.value;
-            if (calendario) calendario.clear();
+            if (calendario) calendario.destroy(); // Destrói a instância anterior
             if (!localidade) return;
 
             try {
@@ -621,15 +620,22 @@
                 const data = await response.json();
                 turnosIndisponiveis = data.turnosIndisponiveis || {};
                 diasLotados = data.diasLotados || [];
+                feriados = data.feriados || [];
                 
-                if (calendario) calendario.destroy();
-                
-                calendario = inicializarCalendario("#data", {
-                    disable: [
-                        function(date) { return (date.getDay() === 0 || date.getDay() === 6); },
-                        ...diasLotados
-                    ],
-                    onChange: function(selectedDates, dateStr, instance) {
+                calendario = inicializarCalendario("data", {
+                    // Pikaday usa uma função para desabilitar dias
+                    disableDayFn: function(date) {
+                        const diaDaSemana = date.getDay();
+                        if (diaDaSemana === 0 || diaDaSemana === 6) return true; // Desabilita fim de semana
+
+                        const dataFormatada = moment(date).format('YYYY-MM-DD');
+                        if (feriados.includes(dataFormatada)) return true; // Desabilita feriados
+                        if (diasLotados.includes(dataFormatada)) return true; // Desabilita dias lotados
+                        
+                        return false;
+                    },
+                    // onSelect é o equivalente ao onChange
+                    onSelect: function() {
                         verificarDisponibilidadeTurnos();
                     }
                 });
@@ -637,14 +643,16 @@
                 console.error(error);
                 turnosIndisponiveis = {};
                 diasLotados = [];
+                feriados = [];
             }
         }
 
         function verificarDisponibilidadeTurnos() {
-            const dataSelecionada = calendario.selectedDates[0] ? calendario.selectedDates[0].toISOString().split('T')[0] : null;
+            const dataSelecionada = calendario ? calendario.getDate() : null;
             if (!dataSelecionada) return;
 
-            const indisponiveis = turnosIndisponiveis[dataSelecionada] || [];
+            const dataFormatada = moment(dataSelecionada).format('YYYY-MM-DD');
+            const indisponiveis = turnosIndisponiveis[dataFormatada] || [];
 
             document.getElementById('periodo_manha').disabled = indisponiveis.includes('manha');
             document.getElementById('periodo_tarde').disabled = indisponiveis.includes('tarde');
@@ -660,12 +668,17 @@
         
         formAgendamento.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const dataSelecionada = calendario.getDate();
+            if (!dataSelecionada) {
+                return showModal('erro', 'Data Inválida', 'Por favor, selecione uma data válida.');
+            }
+
             const agendamentoData = {
                 numero_nota: formAgendamento.numero_nota.value.trim(),
                 numero_instalacao: formAgendamento.numero_instalacao.value.trim(),
                 responsavel_pelo_agendamento: formAgendamento.responsavel.value.trim(),
                 localidade: formAgendamento.localidade.value,
-                data: calendario.selectedDates[0].toISOString().split('T')[0],
+                data: moment(dataSelecionada).format('YYYY-MM-DD'), // Envia no formato ISO
                 periodo: formAgendamento.querySelector('input[name="periodo"]:checked')?.value,
             };
 
@@ -723,7 +736,7 @@
                             <p style="font-size:0.9em; color: #555;">As regras de disponibilidade e antecedência se aplicam.</p>
                             <div class="form-group">
                                 <label for="nova_data">Escolha a nova data</label>
-                                <input type="text" id="nova_data" required placeholder="Selecione uma data...">
+                                <input type="text" id="nova_data" required placeholder="Selecione uma data..." autocomplete="off">
                             </div>
                             <div class="form-group">
                                 <label>Escolha o novo período</label>
@@ -740,8 +753,22 @@
 
                 consultaResultadoDiv.innerHTML = htmlResultado;
                 consultaResultadoDiv.style.display = 'block';
+
                 if(podeReagendar) {
-                    inicializarCalendario("#nova_data");
+                    if (reagendamentoCalendario) reagendamentoCalendario.destroy();
+                    const dispoResponse = await fetch(`${API_URL}/api/disponibilidade/${agendamento.localidade}`);
+                    const dispoData = await dispoResponse.json();
+                    
+                    reagendamentoCalendario = inicializarCalendario("nova_data", {
+                        disableDayFn: function(date) {
+                            const diaDaSemana = date.getDay();
+                            if (diaDaSemana === 0 || diaDaSemana === 6) return true;
+                            const dataFormatada = moment(date).format('YYYY-MM-DD');
+                            if ((dispoData.feriados || []).includes(dataFormatada)) return true;
+                            if ((dispoData.diasLotados || []).includes(dataFormatada)) return true;
+                            return false;
+                        }
+                    });
                 }
 
             } catch (error) {
@@ -750,14 +777,18 @@
         });
 
         async function executarReagendamento(numeroNota) {
-            const novaDataInput = document.getElementById('nova_data')._flatpickr;
+            const dataSelecionada = reagendamentoCalendario ? reagendamentoCalendario.getDate() : null;
+            if (!dataSelecionada) {
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data.');
+            }
+
             const reagendamentoData = {
-                data: novaDataInput.selectedDates[0].toISOString().split('T')[0],
+                data: moment(dataSelecionada).format('YYYY-MM-DD'),
                 periodo: document.querySelector('input[name="novo_periodo"]:checked')?.value,
             };
 
-            if (!reagendamentoData.data || !reagendamentoData.periodo) {
-                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione a nova data e o novo período.');
+            if (!reagendamentoData.periodo) {
+                return showModal('erro', 'Dados Incompletos', 'Por favor, selecione o novo período.');
             }
 
             try {
@@ -828,7 +859,7 @@
                 }
                 const agendamentos = await response.json();
                 if (agendamentos.length === 0) {
-                    return tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
+                    return tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhum agendamento encontrado.</td></tr>';
                 }
                 agendamentos.forEach(ag => {
                     const tr = document.createElement('tr');
@@ -841,7 +872,7 @@
                         <td>${formatarData(ag.data_atual)}</td>
                         <td>${ag.periodo_atual}</td>
                         <td><span class="status-${ag.status}">${ag.status.toUpperCase()}</span></td>
-                        <td>
+                        <td class="table-actions">
                             ${ag.status !== 'concluido' ? `<button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8em;" onclick="marcarComoConcluido('${ag.numero_nota}')">Concluir</button>` : ''}
                             <span class="action-icon" onclick="excluirAgendamento('${ag.numero_nota}')" title="Excluir">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -853,7 +884,7 @@
                     tbody.appendChild(tr);
                 });
             } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center;">Erro ao carregar dados.</td></tr>`;
             }
         }
 
@@ -932,7 +963,7 @@
         });
 
         document.getElementById('btn-exportar').addEventListener('click', () => {
-            const headers = ['NumeroNota', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
+            const headers = ['NumeroNota', 'NumeroInstalacao', 'Responsavel', 'Localidade', 'Data', 'Periodo', 'Status'];
             const rows = Array.from(document.querySelectorAll('#tabela-agendamentos tr'));
             
             let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
@@ -943,6 +974,7 @@
                 const rowData = [
                     cols[1].innerText, cols[2].innerText, cols[3].innerText,
                     cols[4].innerText, cols[5].innerText, cols[6].innerText,
+                    cols[7].innerText
                 ];
                 csvContent += rowData.join(',') + '\n';
             });
@@ -957,9 +989,8 @@
         });
 
         window.onload = () => {
-            calendario = inicializarCalendario("#data");
+            calendario = inicializarCalendario("data");
         };
     </script>
-    <!-- FIM DO JAVASCRIPT -->
-</body>
+    </body>
 </html>
