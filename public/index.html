@@ -544,10 +544,10 @@
 
         function formatarData(dataString) {
             const data = new Date(dataString);
-            const dia = String(data.getUTCDate()).padStart(2, '0');
-            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
             const ano = data.getUTCFullYear();
-            return `${dia}/${mes}/${ano}`;
+            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(data.getUTCDate()).padStart(2, '0');
+            return `${ano}/${mes}/${dia}`;
         }
         
         function hojeFormatado() {
@@ -601,7 +601,7 @@
 
             const config = {
                 locale: "pt",
-                dateFormat: "d/m/Y",
+                dateFormat: "Y/m/d",
                 minDate: dataMinima,
                 maxDate: dataMaxima,
                 disable: [ function(date) { return (date.getDay() === 0 || date.getDay() === 6); } ],
