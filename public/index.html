@@ -498,6 +498,7 @@
             <div class="backoffice-actions">
                 <button id="btn-exportar" class="btn-secondary" style="width: auto; padding: 8px 15px;">Exportar para CSV/Excel</button>
                 <button id="btn-excluir-selecionados" class="btn-danger" style="width: auto; padding: 8px 15px; display: none;">Excluir Selecionados</button>
+                <button id="btn-atualizar" class="btn-secondary" style="width: auto; padding: 8px 15px; margin-left: auto;">Atualizar</button>
             </div>
 
             <div class="table-wrapper">
@@ -925,7 +926,8 @@
         document.getElementById('filtro-localidade').addEventListener('change', renderizarTabelaBackoffice);
         document.getElementById('filtro-status').addEventListener('change', renderizarTabelaBackoffice);
         document.getElementById('filtro-data').addEventListener('change', renderizarTabelaBackoffice);
-
+        // Event listener para o novo botão de atualizar
+        document.getElementById('btn-atualizar').addEventListener('click', renderizarTabelaBackoffice);
         document.getElementById('selecionar-todos').addEventListener('change', (e) => {
             document.querySelectorAll('.checkbox-item').forEach(checkbox => checkbox.checked = e.target.checked);
             toggleBotaoExcluir();
